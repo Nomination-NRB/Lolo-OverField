@@ -7,11 +7,15 @@ import (
 	pb "google.golang.org/protobuf/proto"
 
 	"gucooing/lolo/game/model"
-	"gucooing/lolo/gdconf"
 	"gucooing/lolo/pkg/alg"
 	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/cmd"
 	"gucooing/lolo/protocol/proto"
+)
+
+var (
+	channelTick   time.Duration = 50 * time.Millisecond // 50 毫秒
+	oneSTickCount int
 )
 
 type ChannelInfo struct {
@@ -19,8 +23,7 @@ type ChannelInfo struct {
 	ChannelId        uint32                                // 房间号
 	allPlayer        map[uint32]*ScenePlayer               // 当前房间的全部玩家
 	weatherType      proto.WeatherType                     // 天气
-	todTime          uint32                                // 时间
-	tick             time.Duration                         // 时间刻 ms
+	tickCount        int                                   // 已经过去的时刻数量
 	doneChan         chan struct{}                         // done
 	sceneSyncDatas   []*proto.SceneSyncData                // 一个tick中待同步的内容
 	sceneServerDatas map[uint32]*proto.ServerSceneSyncData // 一个tick中玩家变动内容
@@ -37,8 +40,7 @@ func (s *SceneInfo) newChannelInfo(channelId uint32) *ChannelInfo {
 		SceneInfo:            s,
 		ChannelId:            channelId,
 		allPlayer:            make(map[uint32]*ScenePlayer),
-		weatherType:          proto.WeatherType_WeatherType_RAINY,
-		tick:                 time.Duration(alg.MaxInt(50, gdconf.GetConstant().ChannelTick)) * time.Millisecond,
+		weatherType:          proto.WeatherType_WeatherType_SUNNY,
 		doneChan:             make(chan struct{}),
 		addScenePlayerChan:   make(chan *ScenePlayer, 10),
 		delScenePlayerChan:   make(chan *ScenePlayer, 10),
@@ -71,9 +73,17 @@ func (c *ChannelInfo) sendPlayer(player *ScenePlayer, cmdId uint32, packetId uin
 	player.Conn.Send(cmdId, packetId, payloadMsg)
 }
 
+func (c *ChannelInfo) getTodTime() uint32 {
+	return uint32(c.tickCount/oneSTickCount*48) % (28 * 61 * 48)
+}
+
+func (c *ChannelInfo) getTodTimeH() int64 {
+	return int64((c.tickCount / oneSTickCount / 61) % 24)
+}
+
 // 房间主线程
 func (c *ChannelInfo) channelMainLoop() {
-	syncTimer := time.NewTimer(c.tick) // 0.2s 同步一次
+	syncTimer := time.NewTimer(channelTick) // 0.2s 同步一次
 	defer func() {
 		syncTimer.Stop()
 		log.Game.Debugf("场景:%v房间:%v退出", c.SceneInfo.SceneId, c.ChannelId)
@@ -82,7 +92,7 @@ func (c *ChannelInfo) channelMainLoop() {
 		select {
 		case <-syncTimer.C: // 定时同步
 			c.channelTick()
-			syncTimer.Reset(c.tick)
+			syncTimer.Reset(channelTick)
 		case scenePlayer := <-c.addScenePlayerChan: // 玩家进入
 			c.addPlayer(scenePlayer)
 		case scenePlayer := <-c.delScenePlayerChan: // 玩家退出
@@ -97,6 +107,47 @@ func (c *ChannelInfo) channelMainLoop() {
 			return
 		}
 	}
+}
+
+func (c *ChannelInfo) channelTick() {
+	c.tickCount++
+	// 时间帧递进
+	if c.tickCount != 0 && c.tickCount%(oneSTickCount*61) == 0 {
+		log.Game.Debugf("场景%v房间%v时间%vH 天气%s",
+			c.SceneInfo.SceneId, c.ChannelId, c.getTodTimeH(), c.weatherType.String())
+		c.serverSceneSync(&ServerSceneSyncCtx{
+			ActionType: proto.SceneActionType_SceneActionType_TOD_UPDATE,
+		})
+	}
+	// 天气更新
+	if proto.WeatherType(c.getTodTimeH()/12) != c.weatherType {
+		c.weatherType = proto.WeatherType(c.getTodTimeH() / 12)
+		c.SceneWeatherChangeNotice()
+	}
+
+	// 场景自动化更新
+	// 场景变化同步
+	if len(c.sceneSyncDatas) > 0 {
+		notice := &proto.PlayerSceneSyncDataNotice{
+			Status: proto.StatusCode_StatusCode_OK,
+			Data:   c.sceneSyncDatas,
+		}
+		c.sendAllPlayer(cmd.PlayerSceneSyncDataNotice, 0, notice)
+		c.sceneSyncDatas = make([]*proto.SceneSyncData, 0)
+	}
+	// 玩家变化同步
+	if len(c.sceneServerDatas) > 0 {
+		notice := &proto.ServerSceneSyncDataNotice{
+			Status: proto.StatusCode_StatusCode_OK,
+			Data:   make([]*proto.ServerSceneSyncData, 0),
+		}
+		for _, data := range c.sceneServerDatas {
+			alg.AddList(&notice.Data, data)
+		}
+		c.sendAllPlayer(cmd.ServerSceneSyncDataNotice, 0, notice)
+		c.sceneServerDatas = make(map[uint32]*proto.ServerSceneSyncData)
+	}
+
 }
 
 func (c *ChannelInfo) addPlayer(scenePlayer *ScenePlayer) bool {
@@ -151,14 +202,24 @@ type ServerSceneSyncCtx struct {
 }
 
 func (c *ChannelInfo) serverSceneSync(ctx *ServerSceneSyncCtx) {
-	playerData, ok := c.sceneServerDatas[ctx.ScenePlayer.UserId]
-	if !ok {
-		playerData = &proto.ServerSceneSyncData{
-			PlayerId:   ctx.ScenePlayer.UserId,
-			ServerData: make([]*proto.SceneServerData, 0),
+	getPlayerData := func(userId uint32) *proto.ServerSceneSyncData {
+		pd, ok := c.sceneServerDatas[userId]
+		if !ok {
+			pd = &proto.ServerSceneSyncData{
+				PlayerId:   userId,
+				ServerData: make([]*proto.SceneServerData, 0),
+			}
+			c.sceneServerDatas[userId] = pd
 		}
-		c.sceneServerDatas[ctx.ScenePlayer.UserId] = playerData
+		return pd
 	}
+	var playerData *proto.ServerSceneSyncData
+	if ctx.ScenePlayer == nil {
+		playerData = getPlayerData(0)
+	} else {
+		playerData = getPlayerData(ctx.ScenePlayer.UserId)
+	}
+
 	serverData := &proto.SceneServerData{
 		ActionType: ctx.ActionType,
 	}
@@ -172,32 +233,9 @@ func (c *ChannelInfo) serverSceneSync(ctx *ServerSceneSyncCtx) {
 		serverData.Player = &proto.ScenePlayer{
 			Team: c.GetPbSceneTeam(ctx.ScenePlayer),
 		}
+	case proto.SceneActionType_SceneActionType_TOD_UPDATE: /* 时间更新*/
+		serverData.TodTime = c.getTodTime()
 	}
-}
-
-func (c *ChannelInfo) channelTick() {
-	// 场景变化同步
-	if len(c.sceneSyncDatas) > 0 {
-		notice := &proto.PlayerSceneSyncDataNotice{
-			Status: proto.StatusCode_StatusCode_OK,
-			Data:   c.sceneSyncDatas,
-		}
-		c.sendAllPlayer(cmd.PlayerSceneSyncDataNotice, 0, notice)
-		c.sceneSyncDatas = make([]*proto.SceneSyncData, 0)
-	}
-	// 玩家变化同步
-	if len(c.sceneServerDatas) > 0 {
-		notice := &proto.ServerSceneSyncDataNotice{
-			Status: proto.StatusCode_StatusCode_OK,
-			Data:   make([]*proto.ServerSceneSyncData, 0),
-		}
-		for _, data := range c.sceneServerDatas {
-			alg.AddList(&notice.Data, data)
-		}
-		c.sendAllPlayer(cmd.ServerSceneSyncDataNotice, 0, notice)
-		c.sceneServerDatas = make(map[uint32]*proto.ServerSceneSyncData)
-	}
-
 }
 
 // action同步上下文
@@ -251,7 +289,7 @@ func (c *ChannelInfo) GetPbSceneData() (info *proto.SceneData) {
 		CurrentGatherGroupId: 0,
 		Players:              make([]*proto.ScenePlayer, 0), // ok
 		ChannelId:            c.ChannelId,                   // ok
-		TodTime:              c.todTime,                     // ok
+		TodTime:              c.getTodTime(),                // ok
 		CampFires:            make([]*proto.CampFire, 0),
 		WeatherType:          c.weatherType, // ok
 		ChannelLabel:         c.ChannelId,   // ok
@@ -391,4 +429,12 @@ func (s *ScenePlayer) GetPbSceneCharacterOutfitPreset(characterInfo *model.Chara
 	}
 
 	return info
+}
+
+func (c *ChannelInfo) SceneWeatherChangeNotice() {
+	notice := &proto.SceneWeatherChangeNotice{
+		Status:      proto.StatusCode_StatusCode_OK,
+		WeatherType: c.weatherType,
+	}
+	c.sendAllPlayer(cmd.SceneWeatherChangeNotice, 0, notice)
 }

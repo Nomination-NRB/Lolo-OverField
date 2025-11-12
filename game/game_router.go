@@ -21,6 +21,7 @@ func (g *Game) newRouter() {
 		cmd.PlayerSceneRecordReq:  g.PlayerSceneRecord,  // 玩家场景同步器
 		cmd.SendActionReq:         g.SendAction,         // 场景自动化同步器
 		cmd.ChangeSceneChannelReq: g.ChangeSceneChannel, // 切换场景/房间
+		cmd.GenericSceneBReq:      g.GenericSceneB,      // 获取房间中的天气
 		// 队伍
 		cmd.UpdateTeamReq: g.UpdateTeam, // 更新队伍
 		// 物品
@@ -50,7 +51,6 @@ func (g *Game) newRouter() {
 		cmd.NpcTalkReq:               g.NpcTalk,  // npc对话
 		cmd.TutorialReq:              g.Tutorial, // 开始教程
 		cmd.ChallengeFriendRankReq:   g.ChallengeFriendRank,
-		cmd.GenericSceneBReq:         g.GenericSceneB,
 		cmd.AbilityBadgeListReq:      g.AbilityBadgeList,
 		cmd.SceneProcessListReq:      g.SceneProcessList,
 		cmd.ShopInfoReq:              g.ShopInfo,

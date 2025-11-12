@@ -8,6 +8,7 @@ import (
 
 	"gucooing/lolo/config"
 	"gucooing/lolo/game/model"
+	"gucooing/lolo/gdconf"
 	"gucooing/lolo/pkg/alg"
 	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/pkg/ofnet"
@@ -37,6 +38,9 @@ func NewGame() *Game {
 		doneChan:    make(chan struct{}),
 	}
 	g.newRouter()
+	// 初始化场景配置
+	channelTick = time.Duration(alg.MaxInt(int(channelTick.Milliseconds()), gdconf.GetConstant().ChannelTick)) * time.Millisecond
+	oneSTickCount = int(time.Second / channelTick)
 
 	go g.gameMainLoop()
 	return g

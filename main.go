@@ -83,6 +83,8 @@ func newLolo() {
 	} else {
 		log.App.Debug("初始化数据库成功")
 	}
+	// 初始化资源文件
+	gdconf.LoadGameConfig()
 	// 初始化gin
 	ginRouter, httpServer := NewGin()
 	// 初始化sdk
@@ -91,8 +93,6 @@ func newLolo() {
 	g := gateway.NewGateway(ginRouter)
 	// 初始化logserver
 	l := logserver.NewLogServer(ginRouter)
-	// 初始化资源文件
-	gdconf.LoadGameConfig()
 
 	// 启动HTTP服务器
 	log.App.Infof("ClientVersion:%s", pkg.ClientVersion)

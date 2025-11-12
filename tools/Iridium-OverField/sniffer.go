@@ -367,6 +367,9 @@ func handleFlag(flag uint32, body []byte) []byte {
 }
 
 func buildPacketToSend(head *PacketHead, data []byte, fromServer bool, timestamp time.Time, packetId uint16, objectJson interface{}) {
+	if _, ok := packetFilter[GetProtoNameById(packetId)]; ok {
+		return
+	}
 	packet := &Packet{
 		Time:       timestamp.UnixMilli(),
 		FromServer: fromServer,

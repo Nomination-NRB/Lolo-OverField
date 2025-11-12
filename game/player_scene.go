@@ -115,4 +115,26 @@ func (g *Game) GenericSceneB(s *model.Player, msg *alg.GameMsg) {
 		Params:       make([]*proto.CommonParam, 0),
 	}
 	defer g.send(s, cmd.GenericSceneBRsp, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	if scenePlayer == nil ||
+		scenePlayer.channelInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_PLAYER_NOT_IN_CHANNEL
+		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
+		return
+	}
+	h := scenePlayer.channelInfo.getTodTimeH()
+
+	for i := int64(0); i < 12; i++ {
+		value := (h + i) % 24
+		alg.AddList(&rsp.Params, &proto.CommonParam{
+			ParamType: proto.CommonParamType_COMMON_PARAM_TYPE_NONE,
+			IntValue:  value,
+			StringValue: func() string {
+				if value/12 == 0 {
+					return ""
+				}
+				return "1"
+			}(),
+		})
+	}
 }
