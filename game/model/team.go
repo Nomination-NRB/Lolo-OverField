@@ -1,6 +1,7 @@
 package model
 
 import (
+	"gucooing/lolo/gdconf"
 	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/proto"
 )
@@ -22,47 +23,31 @@ func (s *Player) GetTeamModel() *TeamModel {
 	return s.Team
 }
 
-func (s *Player) newTeamInfo() *TeamInfo {
+func newTeamInfo() *TeamInfo {
+	if len(gdconf.GetConstant().DefaultCharacter) < 1 {
+		log.Game.Warnf("默认角色数量不能小于1个")
+		return nil
+	}
 	info := &TeamInfo{
-		Char1: 0,
+		Char1: gdconf.GetConstant().DefaultCharacter[0],
 		Char2: 0,
 		Char3: 0,
-	}
-	index := 0
-	for id, _ := range s.GetCharacterMap() {
-		switch index {
-		case 0:
-			info.Char1 = id
-		case 1:
-			info.Char2 = id
-		case 2:
-			info.Char3 = id
-		}
-		index++
-		if index == 3 {
-			break
-		}
-	}
-	if index != 3 {
-		log.Game.Warnf("玩家:%v角色数量不足", s.UserId)
 	}
 	return info
 }
 
-func (s *Player) GetTeamInfo() *TeamInfo {
-	info := s.GetTeamModel()
-	if info.TeamInfo == nil {
-		info.TeamInfo = s.newTeamInfo()
+func (t *TeamModel) GetTeamInfo() *TeamInfo {
+	if t.TeamInfo == nil {
+		t.TeamInfo = newTeamInfo()
 	}
-	return info.TeamInfo
+	return t.TeamInfo
 }
 
-func (s *Player) GetPbTeam() *proto.Team {
-	teamInfo := s.GetTeamInfo()
+func (t *TeamInfo) GetPbTeam() *proto.Team {
 	info := &proto.Team{
-		Char1: teamInfo.Char1,
-		Char2: teamInfo.Char2,
-		Char3: teamInfo.Char3,
+		Char1: t.Char1,
+		Char2: t.Char2,
+		Char3: t.Char3,
 	}
 	return info
 }

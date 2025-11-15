@@ -15,26 +15,16 @@ func DefaultCharacterModel() *CharacterModel {
 	info := &CharacterModel{
 		CharacterMap: make(map[uint32]*CharacterInfo),
 	}
-	for _, characterId := range gdconf.GetConstant().DefaultCharacter {
-		characterInfo := NewCharacterInfo(characterId)
-		if characterInfo == nil {
-			log.Game.Errorf("初始化默认角色:%v失败", characterId)
-			continue
-		}
-		info.CharacterMap[characterId] = characterInfo
-	}
 	return info
 }
 
-func (c *CharacterModel) AllCharacterModel() {
-	c.CharacterMap = make(map[uint32]*CharacterInfo)
+func (s *Player) AllCharacterModel() {
 	for _, conf := range gdconf.GetCharacterAllMap() {
-		characterInfo := NewCharacterInfo(conf.CharacterId)
-		if characterInfo == nil {
+		ok := s.AddCharacter(conf.CharacterId)
+		if !ok {
 			log.Game.Errorf("添加角色:%v失败", conf.CharacterId)
 			continue
 		}
-		c.CharacterMap[conf.CharacterId] = characterInfo
 	}
 }
 
@@ -61,35 +51,32 @@ type CharacterInfo struct {
 	OutfitPresetList          map[uint32]*OutfitPreset    `json:"outfitPresets,omitempty"`             // 角色服装预设表
 }
 
-func NewCharacterInfo(characterId uint32) *CharacterInfo {
-	conf := gdconf.GetCharacterAll(characterId)
-	if conf == nil {
-		return nil
-	}
+func newCharacterInfo(characterId uint32) *CharacterInfo {
 	info := &CharacterInfo{
-		CharacterId: conf.CharacterId,
-		Level:       1,
-		Exp:         0,
-		Star:        0,
+		CharacterId:               characterId,
+		Level:                     1,
+		Exp:                       0,
+		Star:                      0,
+		CharacterAppearance:       newCharacterAppearance(characterId),
+		CharacterSkillList:        newCharacterSkillList(characterId),
+		InUseEquipmentPresetIndex: 0,
+		EquipmentPresetList:       nil,
+		InUseOutfitPresetIndex:    0,
+		OutfitPresetList:          nil,
 	}
 
 	return info
 }
 
-func (s *Player) GetCharacterMap() map[uint32]*CharacterInfo {
-	info := s.GetCharacterModel()
-	if info == nil {
-		return nil
+func (c *CharacterModel) GetCharacterMap() map[uint32]*CharacterInfo {
+	if c.CharacterMap == nil {
+		c.CharacterMap = make(map[uint32]*CharacterInfo)
 	}
-	if info.CharacterMap == nil {
-		log.Game.Errorf("玩家:%v没有默认角色", s.UserId)
-		return nil
-	}
-	return info.CharacterMap
+	return c.CharacterMap
 }
 
-func (s *Player) GetCharacterInfo(characterId uint32) *CharacterInfo {
-	list := s.GetCharacterMap()
+func (c *CharacterModel) GetCharacterInfo(characterId uint32) *CharacterInfo {
+	list := c.GetCharacterMap()
 	if list == nil {
 		return nil
 	}
@@ -97,7 +84,7 @@ func (s *Player) GetCharacterInfo(characterId uint32) *CharacterInfo {
 }
 
 func (s *Player) AddCharacter(characterId uint32) bool {
-	list := s.GetCharacterMap()
+	list := s.GetCharacterModel().GetCharacterMap()
 	if list == nil {
 		return false
 	}
@@ -107,37 +94,62 @@ func (s *Player) AddCharacter(characterId uint32) bool {
 		return false
 	}
 	if list[characterId] != nil {
+		log.Game.Debugf("重复添加角色:%v", characterId)
 		return true
 	}
-	list[characterId] = NewCharacterInfo(characterId)
+	characterInfo := newCharacterInfo(characterId)
+	list[characterId] = characterInfo
+	// 初始化装备
+	preset := characterInfo.GetEquipmentPreset(characterInfo.InUseEquipmentPresetIndex)
+	itemWeapon := s.GetItemModel().AddItemWeaponByWeaponId(uint32(conf.CharacterInfo.DefaultWeaponID))
+	if itemWeapon == nil {
+		log.Game.Warnf("角色:%v,添加默认武器:%v失败", characterId, conf.CharacterInfo.DefaultWeaponID)
+		return false
+	}
+	itemWeapon.SetWearerId(characterId)
+	preset.Weapon = itemWeapon.InstanceId
+	// 初始化外观
+	for index := uint32(0); index < gdconf.GetConstant().OutfitPresetNum; index++ {
+		outfit := characterInfo.GetOutfitPreset(index)
+		if hat := s.GetItemModel().AddItemFashionByFashionId(
+			uint32(conf.CharacterInfo.HatID)); hat != nil {
+			outfit.Hat = uint32(conf.CharacterInfo.HatID)
+		}
+		if hair := s.GetItemModel().AddItemFashionByFashionId(
+			uint32(conf.CharacterInfo.HairID)); hair != nil {
+			outfit.Hair = uint32(conf.CharacterInfo.HairID)
+		}
+		if cloth := s.GetItemModel().AddItemFashionByFashionId(
+			uint32(conf.CharacterInfo.ClothID)); cloth != nil {
+			outfit.Clothes = uint32(conf.CharacterInfo.ClothID)
+		}
+	}
+
 	return true
 }
 
-func (s *Player) GetAllPbCharacter() []*proto.Character {
+func (c *CharacterModel) GetAllPbCharacter() []*proto.Character {
 	list := make([]*proto.Character, 0)
-	for _, characterInfo := range s.GetCharacterMap() {
-		alg.AddList(&list, s.GetPbCharacter(characterInfo))
+	for _, characterInfo := range c.GetCharacterMap() {
+		alg.AddList(&list, characterInfo.GetPbCharacter())
 	}
 	return list
 }
 
-func (s *Player) GetPbCharacter(info *CharacterInfo) *proto.Character {
-	if info == nil {
-		return nil
-	}
+func (c *CharacterInfo) GetPbCharacter() *proto.Character {
 	pbInfo := &proto.Character{
-		CharacterId:               info.CharacterId,
-		Level:                     info.Level,
+		CharacterId:               c.CharacterId,
+		Level:                     c.Level,
 		MaxLevel:                  0,
-		Exp:                       info.Exp,
-		Star:                      info.Star,
-		EquipmentPresets:          s.GetPbEquipmentPresets(info),
-		InUseEquipmentPresetIndex: info.InUseEquipmentPresetIndex,
-		OutfitPresets:             s.GetPbOutfitPresets(info),
-		InUseOutfitPresetIndex:    info.InUseOutfitPresetIndex,
+		Exp:                       c.Exp,
+		Star:                      c.Star,
+		EquipmentPresets:          c.GetPbEquipmentPresets(),
+		InUseEquipmentPresetIndex: c.InUseEquipmentPresetIndex,
+		OutfitPresets:             c.GetPbOutfitPresets(),
+		InUseOutfitPresetIndex:    c.InUseOutfitPresetIndex,
 		GatherWeapon:              0,
-		CharacterAppearance:       s.GetPbCharacterAppearance(info),
-		CharacterSkillList:        s.GetPbCharacterSkillList(info),
+		CharacterAppearance:       c.GetPbCharacterAppearance(),
+		CharacterSkillList:        c.GetPbCharacterSkillList(),
 		RewardedAchievementIdLst:  nil,
 		IsUnlockPayment:           false,
 		RewardIndexLst:            nil,
@@ -158,7 +170,7 @@ type CharacterAppearance struct {
 	FishingRodInstanceId       uint32 `json:"fishingRodInstanceId,omitempty"`
 }
 
-func (s *Player) NewCharacterAppearance(characterId uint32) *CharacterAppearance {
+func newCharacterAppearance(characterId uint32) *CharacterAppearance {
 	info := &CharacterAppearance{
 		Badge:                      gdconf.GetConstant().DefaultBadge,
 		UmbrellaId:                 gdconf.GetConstant().DefaultUmbrellaId,
@@ -169,21 +181,12 @@ func (s *Player) NewCharacterAppearance(characterId uint32) *CharacterAppearance
 		CollectionGlovesInstanceId: 0,
 		FishingRodInstanceId:       0,
 	}
-	s.GetItemModel().AddItemBase(info.Badge, 1)
-	s.GetItemModel().AddItemBase(info.UmbrellaId, 1)
 
 	return info
 }
 
-func (s *Player) GetCharacterAppearance(info *CharacterInfo) *CharacterAppearance {
-	if info.CharacterAppearance == nil {
-		info.CharacterAppearance = s.NewCharacterAppearance(info.CharacterId)
-	}
-	return info.CharacterAppearance
-}
-
-func (s *Player) GetPbCharacterAppearance(characterInfo *CharacterInfo) *proto.CharacterAppearance {
-	info := s.GetCharacterAppearance(characterInfo)
+func (c *CharacterInfo) GetPbCharacterAppearance() *proto.CharacterAppearance {
+	info := c.CharacterAppearance
 	if info == nil {
 		return nil
 	}
@@ -206,7 +209,7 @@ type CharacterSkill struct {
 	SkillLevel uint32 `json:"skillLevel,omitempty"`
 }
 
-func NewCharacterSkillList(id uint32) map[uint32]*CharacterSkill {
+func newCharacterSkillList(id uint32) map[uint32]*CharacterSkill {
 	conf := gdconf.GetCharacterAll(id)
 	if conf == nil {
 		log.Game.Warnf("添加技能的角色不存在id:%v", id)
@@ -228,20 +231,9 @@ func NewCharacterSkillList(id uint32) map[uint32]*CharacterSkill {
 	return list
 }
 
-func (s *Player) GetCharacterSkillList(info *CharacterInfo) map[uint32]*CharacterSkill {
-	if info.CharacterSkillList == nil {
-		info.CharacterSkillList = NewCharacterSkillList(info.CharacterId)
-	}
-	return info.CharacterSkillList
-}
-
-func (s *Player) GetPbCharacterSkillList(characterInfo *CharacterInfo) []*proto.CharacterSkill {
-	infoList := s.GetCharacterSkillList(characterInfo)
-	if infoList == nil {
-		return nil
-	}
+func (c *CharacterInfo) GetPbCharacterSkillList() []*proto.CharacterSkill {
 	pbInfoList := make([]*proto.CharacterSkill, 0)
-	for _, info := range infoList {
+	for _, info := range c.CharacterSkillList {
 		alg.AddList(&pbInfoList, &proto.CharacterSkill{
 			SkillId:    info.SkillId,
 			SkillLevel: info.SkillLevel,
@@ -282,98 +274,106 @@ func (a *PosterInfo) PosterInfo() *proto.PosterInfo {
 	}
 }
 
-func (s *Player) NewEquipmentPresetList(id uint32) map[uint32]*EquipmentPreset {
-	conf := gdconf.GetCharacterAll(id)
+func newEquipmentPreset(characterId, presetIndex uint32) *EquipmentPreset {
+	conf := gdconf.GetCharacterAll(characterId)
 	if conf == nil {
-		log.Game.Warnf("角色:%v获取初始装备套装失败", id)
+		log.Game.Warnf("角色:%v获取初始装备套装失败", characterId)
 		return nil
 	}
-	list := make(map[uint32]*EquipmentPreset)
-	for i := 0; i < gdconf.GetConstant().EquipmentPresetNum; i++ {
-		info := &EquipmentPreset{
-			PresetIndex: uint32(i),
-			Weapon:      0,
-			Armors:      make(map[proto.EEquipType]*ArmorInfo),
-			Posters:     make(map[proto.PosterInfo_PosterIndex]*PosterInfo),
-		}
-		if i == 0 {
-			// 添加武器
-			itemWeapon := s.GetItemModel().AddItemWeaponByWeaponId(uint32(conf.CharacterInfo.DefaultWeaponID))
-			if itemWeapon == nil {
-				log.Game.Warnf("角色:%v,添加默认武器:%v失败", id, conf.CharacterInfo.DefaultWeaponID)
-				return nil
-			}
-			itemWeapon.SetWearerId(id)
-			info.Weapon = itemWeapon.InstanceId
-		}
-		// 添加盔甲
-		for _, tag := range proto.EEquipType_value {
-			info.Armors[proto.EEquipType(tag)] = &ArmorInfo{
-				EquipType: proto.EEquipType(tag),
-				ArmorId:   0,
-			}
-		}
-		// 添加海报
-		for _, index := range proto.PosterInfo_PosterIndex_value {
-			info.Posters[proto.PosterInfo_PosterIndex(index)] = &PosterInfo{
-				PosterIndex: proto.PosterInfo_PosterIndex(index),
-				PosterId:    0,
-			}
-		}
-		list[uint32(i)] = info
+	info := &EquipmentPreset{
+		PresetIndex: presetIndex,
+		Weapon:      0,
+		Armors:      make(map[proto.EEquipType]*ArmorInfo),
+		Posters:     make(map[proto.PosterInfo_PosterIndex]*PosterInfo),
 	}
-
-	return list
+	// 添加盔甲
+	for _, tag := range proto.EEquipType_value {
+		info.Armors[proto.EEquipType(tag)] = &ArmorInfo{
+			EquipType: proto.EEquipType(tag),
+			ArmorId:   0,
+		}
+	}
+	// 添加海报
+	for _, index := range proto.PosterInfo_PosterIndex_value {
+		info.Posters[proto.PosterInfo_PosterIndex(index)] = &PosterInfo{
+			PosterIndex: proto.PosterInfo_PosterIndex(index),
+			PosterId:    0,
+		}
+	}
+	return info
 }
 
-func (s *Player) GetEquipmentPresetList(info *CharacterInfo) map[uint32]*EquipmentPreset {
-	if info.EquipmentPresetList == nil {
-		info.EquipmentPresetList = s.NewEquipmentPresetList(info.CharacterId)
+func (c *CharacterInfo) GetEquipmentPresetList() map[uint32]*EquipmentPreset {
+	if c.EquipmentPresetList == nil {
+		c.EquipmentPresetList = make(map[uint32]*EquipmentPreset)
 	}
-	return info.EquipmentPresetList
+	return c.EquipmentPresetList
 }
 
-func (s *Player) GetEquipmentPreset(info *CharacterInfo, index uint32) *EquipmentPreset {
-	list := s.GetEquipmentPresetList(info)
-	return list[index]
+func (c *CharacterInfo) GetEquipmentPreset(index uint32) *EquipmentPreset {
+	list := c.GetEquipmentPresetList()
+	info, ok := list[index]
+	if !ok {
+		info = newEquipmentPreset(c.CharacterId, index)
+		list[index] = info
+	}
+	return info
 }
 
-func (s *Player) GetPbEquipmentPresets(characterInfo *CharacterInfo) []*proto.EquipmentPreset {
-	infoList := s.GetEquipmentPresetList(characterInfo)
-	if infoList == nil {
-		return nil
+func (e *EquipmentPreset) EquipmentPreset() *proto.EquipmentPreset {
+	info := &proto.EquipmentPreset{
+		PresetIndex: e.PresetIndex,
+		Weapon:      e.Weapon,
+		Armors:      make([]*proto.ArmorInfo, 0),
+		Posters:     make([]*proto.PosterInfo, 0),
 	}
+	for _, armor := range e.Armors {
+		alg.AddList(&info.Armors, armor.ArmorInfo())
+	}
+	for _, poster := range e.Posters {
+		alg.AddList(&info.Posters, poster.PosterInfo())
+	}
+	return info
+}
+
+func (c *CharacterInfo) GetPbEquipmentPresets() []*proto.EquipmentPreset {
 	pbInfoList := make([]*proto.EquipmentPreset, 0)
-	for _, info := range infoList {
-		pbInfo := &proto.EquipmentPreset{
-			PresetIndex: info.PresetIndex,
-			Weapon:      info.Weapon,
-			Armors:      make([]*proto.ArmorInfo, 0),
-			Posters:     make([]*proto.PosterInfo, 0),
-		}
-		for _, armor := range info.Armors {
-			alg.AddList(&pbInfo.Armors, armor.ArmorInfo())
-		}
-		for _, poster := range info.Posters {
-			alg.AddList(&pbInfo.Posters, poster.PosterInfo())
-		}
-		alg.AddList(&pbInfoList, pbInfo)
+	for i := uint32(0); i < gdconf.GetConstant().EquipmentPresetNum; i++ {
+		e := c.GetEquipmentPreset(i)
+		alg.AddList(&pbInfoList, e.EquipmentPreset())
 	}
-
 	return pbInfoList
 }
 
 type OutfitPreset struct {
-	PresetIndex            uint32          `json:"presetIndex,omitempty"`
-	Hat                    uint32          `json:"hat,omitempty"`
-	Hair                   uint32          `json:"hair,omitempty"`
-	Clothes                uint32          `json:"clothes,omitempty"`
-	Ornament               uint32          `json:"ornament,omitempty"`
-	HatDyeSchemeIndex      uint32          `json:"hatDyeSchemeIndex,omitempty"`
-	HairDyeSchemeIndex     uint32          `json:"hairDyeSchemeIndex,omitempty"`
-	ClothesDyeSchemeIndex  uint32          `json:"clothesDyeSchemeIndex,omitempty"`
-	OrnamentDyeSchemeIndex uint32          `json:"ornamentDyeSchemeIndex,omitempty"`
-	OutfitHideInfo         *OutfitHideInfo `json:"outfitHideInfo,omitempty"`
+	PresetIndex                 uint32          `json:"presetIndex,omitempty"`
+	Hat                         uint32          `json:"hat,omitempty"`
+	HatDyeSchemeIndex           uint32          `json:"hatDyeSchemeIndex,omitempty"`
+	Hair                        uint32          `json:"hair,omitempty"`
+	HairDyeSchemeIndex          uint32          `json:"hairDyeSchemeIndex,omitempty"`
+	Clothes                     uint32          `json:"clothes,omitempty"`
+	ClothesDyeSchemeIndex       uint32          `json:"clothesDyeSchemeIndex,omitempty"`
+	Ornament                    uint32          `json:"ornament,omitempty"`
+	OrnamentDyeSchemeIndex      uint32          `json:"ornamentDyeSchemeIndex,omitempty"`
+	OutfitHideInfo              *OutfitHideInfo `json:"outfitHideInfo,omitempty"`
+	PendTop                     uint32          `json:"pendTop,omitempty"`
+	PendTopDyeSchemeIndex       uint32          `json:"pendTopDyeSchemeIndex,omitempty"`
+	PendChest                   uint32          `json:"pendChest,omitempty"`
+	PendChestDyeSchemeIndex     uint32          `json:"pendChestDyeSchemeIndex,omitempty"`
+	PendPelvis                  uint32          `json:"pendPelvis,omitempty"`
+	PendPelvisDyeSchemeIndex    uint32          `json:"pendPelvisDyeSchemeIndex,omitempty"`
+	PendUpFace                  uint32          `json:"pendUpFace,omitempty"`
+	PendUpFaceDyeSchemeIndex    uint32          `json:"pendUpFaceDyeSchemeIndex,omitempty"`
+	PendDownFace                uint32          `json:"pendDownFace,omitempty"`
+	PendDownFaceDyeSchemeIndex  uint32          `json:"pendDownFaceDyeSchemeIndex,omitempty"`
+	PendLeftHand                uint32          `json:"pendLeftHand,omitempty"`
+	PendLeftHandDyeSchemeIndex  uint32          `json:"pendLeftHandDyeSchemeIndex,omitempty"`
+	PendRightHand               uint32          `json:"pendRightHand,omitempty"`
+	PendRightHandDyeSchemeIndex uint32          `json:"pendRightHandDyeSchemeIndex,omitempty"`
+	PendLeftFoot                uint32          `json:"pendLeftFoot,omitempty"`
+	PendLeftFootDyeSchemeIndex  uint32          `json:"pendLeftFootDyeSchemeIndex,omitempty"`
+	PendRightFoot               uint32          `json:"pendRightFoot,omitempty"`
+	PendRightFootDyeSchemeIndex uint32          `json:"pendRightFootDyeSchemeIndex,omitempty"`
 }
 
 type OutfitHideInfo struct {
@@ -388,103 +388,100 @@ func (o *OutfitHideInfo) OutfitHideInfo() *proto.OutfitHideInfo {
 	}
 }
 
-func (s *Player) NewOutfitPresetList(id uint32) map[uint32]*OutfitPreset {
-	conf := gdconf.GetCharacterAll(id)
-	if conf == nil {
-		log.Game.Warnf("角色:%v获取初始服装套装失败", id)
-		return nil
-	}
-	list := make(map[uint32]*OutfitPreset)
-	addOutfit := func(outfitId uint32) bool {
-		if outfitId == 0 {
-			return true
-		}
-		return s.GetItemModel().AddItemFashionByItemId(outfitId)
-	}
-	if !addOutfit(uint32(conf.CharacterInfo.HatID)) {
-		goto err
-	}
-	if !addOutfit(uint32(conf.CharacterInfo.HairID)) {
-		goto err
-	}
-	if !addOutfit(uint32(conf.CharacterInfo.ClothID)) {
-		goto err
-	}
-	for i := 0; i < gdconf.GetConstant().OutfitPresetNum; i++ {
-		info := &OutfitPreset{
-			PresetIndex:            uint32(i),
-			Hat:                    uint32(conf.CharacterInfo.HatID),
-			Hair:                   uint32(conf.CharacterInfo.HairID),
-			Clothes:                uint32(conf.CharacterInfo.ClothID),
-			Ornament:               0,
-			HatDyeSchemeIndex:      0,
-			HairDyeSchemeIndex:     0,
-			ClothesDyeSchemeIndex:  0,
-			OrnamentDyeSchemeIndex: 0,
-			OutfitHideInfo: &OutfitHideInfo{
-				HideOrn:   false,
-				HideBraid: false,
-			},
-		}
-
-		list[uint32(i)] = info
+func (o *OutfitPreset) OutfitPreset() *proto.OutfitPreset {
+	info := &proto.OutfitPreset{
+		PresetIndex:                 o.PresetIndex,
+		Hat:                         o.Hat,
+		Hair:                        o.Hair,
+		Clothes:                     o.Clothes,
+		Ornament:                    o.Ornament,
+		HatDyeSchemeIndex:           o.HatDyeSchemeIndex,
+		HairDyeSchemeIndex:          o.HairDyeSchemeIndex,
+		ClothesDyeSchemeIndex:       o.ClothesDyeSchemeIndex,
+		OrnamentDyeSchemeIndex:      o.OrnamentDyeSchemeIndex,
+		OutfitHideInfo:              o.OutfitHideInfo.OutfitHideInfo(),
+		PendTop:                     o.PendTop,
+		PendChest:                   o.PendChest,
+		PendPelvis:                  o.PendPelvis,
+		PendUpFace:                  o.PendUpFace,
+		PendDownFace:                o.PendDownFace,
+		PendLeftHand:                o.PendLeftHand,
+		PendRightHand:               o.PendRightHand,
+		PendLeftFoot:                o.PendLeftFoot,
+		PendRightFoot:               o.PendRightFoot,
+		PendTopDyeSchemeIndex:       o.PendTopDyeSchemeIndex,
+		PendChestDyeSchemeIndex:     o.PendChestDyeSchemeIndex,
+		PendPelvisDyeSchemeIndex:    o.PendPelvisDyeSchemeIndex,
+		PendUpFaceDyeSchemeIndex:    o.PendUpFaceDyeSchemeIndex,
+		PendDownFaceDyeSchemeIndex:  o.PendDownFaceDyeSchemeIndex,
+		PendLeftHandDyeSchemeIndex:  o.PendLeftHandDyeSchemeIndex,
+		PendRightHandDyeSchemeIndex: o.PendRightHandDyeSchemeIndex,
+		PendLeftFootDyeSchemeIndex:  o.PendLeftFootDyeSchemeIndex,
+		PendRightFootDyeSchemeIndex: o.PendRightFootDyeSchemeIndex,
 	}
 
-	return list
-err:
-	return nil
+	return info
 }
 
-func (s *Player) GetOutfitPresetList(info *CharacterInfo) map[uint32]*OutfitPreset {
-	if info.OutfitPresetList == nil {
-		info.OutfitPresetList = s.NewOutfitPresetList(info.CharacterId)
+func newOutfitPreset(index uint32) *OutfitPreset {
+	return &OutfitPreset{
+		PresetIndex:            index,
+		Hat:                    0,
+		HatDyeSchemeIndex:      0,
+		Hair:                   0,
+		HairDyeSchemeIndex:     0,
+		Clothes:                0,
+		ClothesDyeSchemeIndex:  0,
+		Ornament:               0,
+		OrnamentDyeSchemeIndex: 0,
+		OutfitHideInfo: &OutfitHideInfo{
+			HideOrn:   false,
+			HideBraid: false,
+		},
+		PendTop:                     0,
+		PendTopDyeSchemeIndex:       0,
+		PendChest:                   0,
+		PendChestDyeSchemeIndex:     0,
+		PendPelvis:                  0,
+		PendPelvisDyeSchemeIndex:    0,
+		PendUpFace:                  0,
+		PendUpFaceDyeSchemeIndex:    0,
+		PendDownFace:                0,
+		PendDownFaceDyeSchemeIndex:  0,
+		PendLeftHand:                0,
+		PendLeftHandDyeSchemeIndex:  0,
+		PendRightHand:               0,
+		PendRightHandDyeSchemeIndex: 0,
+		PendLeftFoot:                0,
+		PendLeftFootDyeSchemeIndex:  0,
+		PendRightFoot:               0,
+		PendRightFootDyeSchemeIndex: 0,
 	}
-	return info.OutfitPresetList
 }
 
-func (s *Player) GetOutfitPreset(info *CharacterInfo, index uint32) *OutfitPreset {
-	list := s.GetOutfitPresetList(info)
-	return list[index]
+func (c *CharacterInfo) GetOutfitPresetList() map[uint32]*OutfitPreset {
+	if c.OutfitPresetList == nil {
+		c.OutfitPresetList = make(map[uint32]*OutfitPreset)
+	}
+	return c.OutfitPresetList
 }
 
-func (s *Player) GetPbOutfitPresets(characterInfo *CharacterInfo) []*proto.OutfitPreset {
-	infoList := s.GetOutfitPresetList(characterInfo)
-	if infoList == nil {
-		return nil
+func (c *CharacterInfo) GetOutfitPreset(index uint32) *OutfitPreset {
+	list := c.GetOutfitPresetList()
+	info, ok := list[index]
+	if !ok {
+		info = newOutfitPreset(index)
+		list[index] = info
 	}
+	return info
+}
+
+func (c *CharacterInfo) GetPbOutfitPresets() []*proto.OutfitPreset {
 	pbInfoList := make([]*proto.OutfitPreset, 0)
-	for _, info := range infoList {
-		pbInfo := &proto.OutfitPreset{
-			PresetIndex:                 info.PresetIndex,
-			Hat:                         info.Hat,
-			Hair:                        info.Hair,
-			Clothes:                     info.Clothes,
-			Ornament:                    info.Ornament,
-			HatDyeSchemeIndex:           info.HatDyeSchemeIndex,
-			HairDyeSchemeIndex:          info.HairDyeSchemeIndex,
-			ClothesDyeSchemeIndex:       info.ClothesDyeSchemeIndex,
-			OrnamentDyeSchemeIndex:      info.OrnamentDyeSchemeIndex,
-			OutfitHideInfo:              info.OutfitHideInfo.OutfitHideInfo(),
-			PendTop:                     0,
-			PendChest:                   0,
-			PendPelvis:                  0,
-			PendUpFace:                  0,
-			PendDownFace:                0,
-			PendLeftHand:                0,
-			PendRightHand:               0,
-			PendLeftFoot:                0,
-			PendRightFoot:               0,
-			PendTopDyeSchemeIndex:       0,
-			PendChestDyeSchemeIndex:     0,
-			PendPelvisDyeSchemeIndex:    0,
-			PendUpFaceDyeSchemeIndex:    0,
-			PendDownFaceDyeSchemeIndex:  0,
-			PendLeftHandDyeSchemeIndex:  0,
-			PendRightHandDyeSchemeIndex: 0,
-			PendLeftFootDyeSchemeIndex:  0,
-			PendRightFootDyeSchemeIndex: 0,
-		}
-		alg.AddList(&pbInfoList, pbInfo)
+
+	for i := uint32(0); i < gdconf.GetConstant().OutfitPresetNum; i++ {
+		o := c.GetOutfitPreset(i)
+		alg.AddList(&pbInfoList, o.OutfitPreset())
 	}
 
 	return pbInfoList

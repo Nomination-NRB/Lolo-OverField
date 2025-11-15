@@ -6,8 +6,10 @@ import (
 
 	"github.com/bytedance/sonic"
 
+	"gucooing/lolo/config"
 	"gucooing/lolo/db"
 	"gucooing/lolo/game/model"
+	"gucooing/lolo/gdconf"
 	"gucooing/lolo/pkg/alg"
 	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/pkg/ofnet"
@@ -51,8 +53,17 @@ func (g *Game) PlayerLogin(conn ofnet.Conn, userId uint32, msg *alg.GameMsg) {
 			}
 		} else {
 			// newPlayer
-			s.GetCharacterModel().AllCharacterModel()
-			s.GetItemModel().AllItemModel()
+			for _, characterId := range gdconf.GetConstant().DefaultCharacter {
+				ok := s.AddCharacter(characterId)
+				if !ok {
+					log.Game.Errorf("初始化默认角色:%v失败", characterId)
+					continue
+				}
+			}
+			if config.GetMode() == config.ModeDev {
+				s.AllCharacterModel()
+				s.GetItemModel().AllItemModel()
+			}
 		}
 		g.userMap[userId] = s
 	}
@@ -133,7 +144,7 @@ func (g *Game) PlayerMainData(s *model.Player, msg *alg.GameMsg) {
 	}
 	// 已获得的角色
 	{
-		rsp.Characters = s.GetAllPbCharacter()
+		rsp.Characters = s.GetCharacterModel().GetAllPbCharacter()
 	}
 	scenePlayer := g.getWordInfo().getScenePlayer(s)
 	if scenePlayer == nil {
@@ -148,7 +159,7 @@ func (g *Game) PlayerMainData(s *model.Player, msg *alg.GameMsg) {
 	}
 	// 队伍
 	{
-		rsp.Team = s.GetPbTeam()
+		rsp.Team = s.GetTeamModel().GetTeamInfo().GetPbTeam()
 	}
 	// buff
 	{

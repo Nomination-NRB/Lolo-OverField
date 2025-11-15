@@ -38,7 +38,7 @@ func (g *Game) OutfitPresetUpdate(s *model.Player, msg *alg.GameMsg) {
 	}
 	defer func() {
 		g.send(s, cmd.OutfitPresetUpdateRsp, msg.PacketId, rsp)
-		teamInfo := s.GetTeamInfo()
+		teamInfo := s.GetTeamModel().GetTeamInfo()
 		scenePlayer := g.getWordInfo().getScenePlayer(s)
 		if (req.CharId == teamInfo.Char1 ||
 			req.CharId == teamInfo.Char2 ||
@@ -51,25 +51,43 @@ func (g *Game) OutfitPresetUpdate(s *model.Player, msg *alg.GameMsg) {
 			}
 		}
 	}()
-	characterInfo := s.GetCharacterInfo(req.CharId)
+	characterInfo := s.GetCharacterModel().GetCharacterInfo(req.CharId)
 	if characterInfo == nil {
 		log.Game.Warnf("保存角色预设装扮失败,角色%v不存在", req.CharId)
 		return
 	}
-	outfitPreset := s.GetOutfitPreset(characterInfo, req.Preset.PresetIndex)
+	outfitPreset := characterInfo.GetOutfitPreset(req.Preset.PresetIndex)
 
-	outfitPreset.Hair = req.Preset.Hair
-	outfitPreset.Hair = req.Preset.Hair
-	outfitPreset.Clothes = req.Preset.Clothes
-	outfitPreset.Ornament = req.Preset.Ornament
+	outfitPreset.Hat = req.Preset.Hat
 	outfitPreset.HatDyeSchemeIndex = req.Preset.HatDyeSchemeIndex
+	outfitPreset.Hair = req.Preset.Hair
 	outfitPreset.HairDyeSchemeIndex = req.Preset.HairDyeSchemeIndex
+	outfitPreset.Clothes = req.Preset.Clothes
 	outfitPreset.ClothesDyeSchemeIndex = req.Preset.ClothesDyeSchemeIndex
+	outfitPreset.Ornament = req.Preset.Ornament
 	outfitPreset.OrnamentDyeSchemeIndex = req.Preset.OrnamentDyeSchemeIndex
 	outfitPreset.OutfitHideInfo = &model.OutfitHideInfo{
 		HideOrn:   req.Preset.OutfitHideInfo.HideOrn,
 		HideBraid: req.Preset.OutfitHideInfo.HideBraid,
 	}
+	outfitPreset.PendTop = req.Preset.PendTop
+	outfitPreset.PendTopDyeSchemeIndex = req.Preset.PendTopDyeSchemeIndex
+	outfitPreset.PendChest = req.Preset.PendChest
+	outfitPreset.PendChestDyeSchemeIndex = req.Preset.PendChestDyeSchemeIndex
+	outfitPreset.PendPelvis = req.Preset.PendPelvis
+	outfitPreset.PendPelvisDyeSchemeIndex = req.Preset.PendPelvisDyeSchemeIndex
+	outfitPreset.PendUpFace = req.Preset.PendUpFace
+	outfitPreset.PendUpFaceDyeSchemeIndex = req.Preset.PendUpFaceDyeSchemeIndex
+	outfitPreset.PendDownFace = req.Preset.PendDownFace
+	outfitPreset.PendDownFaceDyeSchemeIndex = req.Preset.PendDownFaceDyeSchemeIndex
+	outfitPreset.PendLeftHand = req.Preset.PendLeftHand
+	outfitPreset.PendLeftHandDyeSchemeIndex = req.Preset.PendLeftHandDyeSchemeIndex
+	outfitPreset.PendRightHand = req.Preset.PendRightHand
+	outfitPreset.PendRightHandDyeSchemeIndex = req.Preset.PendRightHandDyeSchemeIndex
+	outfitPreset.PendLeftFoot = req.Preset.PendLeftFoot
+	outfitPreset.PendLeftFootDyeSchemeIndex = req.Preset.PendLeftFootDyeSchemeIndex
+	outfitPreset.PendRightFoot = req.Preset.PendRightFoot
+	outfitPreset.PendRightFootDyeSchemeIndex = req.Preset.PendRightFootDyeSchemeIndex
 }
 
 func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
@@ -80,14 +98,14 @@ func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
 		Items:     make([]*proto.ItemDetail, 0),
 	}
 	defer g.send(s, cmd.CharacterEquipUpdateRsp, msg.PacketId, rsp)
-	characterInfo := s.GetCharacterInfo(req.CharId)
+	characterInfo := s.GetCharacterModel().GetCharacterInfo(req.CharId)
 	if characterInfo == nil {
 		log.Game.Warnf("保存角色装备失败,角色%v不存在", req.CharId)
 		return
 	}
-	defer alg.AddList(&rsp.Character, s.GetPbCharacter(characterInfo))
+	defer alg.AddList(&rsp.Character, characterInfo.GetPbCharacter())
 
-	equipmentPreset := s.GetEquipmentPreset(characterInfo, req.EquipmentPreset.PresetIndex)
+	equipmentPreset := characterInfo.GetEquipmentPreset(req.EquipmentPreset.PresetIndex)
 	// 更新武器
 	if req.EquipmentPreset.Weapon != equipmentPreset.Weapon {
 		oldEquipmentInfo := s.GetItemModel().GetItemWeaponInfo(equipmentPreset.Weapon)
@@ -97,7 +115,7 @@ func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
 			oldEquipmentInfo.WearerId = 0
 			alg.AddList(&rsp.Items, oldEquipmentInfo.GetPbItemDetail())
 
-			if oldCharacterInfo := s.GetCharacterInfo(newEquipmentInfo.WearerId); oldCharacterInfo != nil {
+			if oldCharacterInfo := s.GetCharacterModel().GetCharacterInfo(newEquipmentInfo.WearerId); oldCharacterInfo != nil {
 				// 移除装备上的角色
 			}
 			newEquipmentInfo.WearerId = req.CharId

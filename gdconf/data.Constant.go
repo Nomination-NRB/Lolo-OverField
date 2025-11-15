@@ -4,8 +4,8 @@ type Constant struct {
 	DefaultCharacter       []uint32 `json:"DefaultCharacter"`
 	DefaultBadge           uint32   `json:"DefaultBadge"`
 	DefaultUmbrellaId      uint32   `json:"DefaultUmbrellaId"`
-	EquipmentPresetNum     int      `json:"EquipmentPresetNum"`
-	OutfitPresetNum        int      `json:"OutfitPresetNum"`
+	EquipmentPresetNum     uint32   `json:"EquipmentPresetNum"`
+	OutfitPresetNum        uint32   `json:"OutfitPresetNum"`
 	DefaultPlayerName      string   `json:"DefaultPlayerName"`
 	DefaultPlayerLevel     uint32   `json:"DefaultPlayerLevel"`
 	DefaultPlayerExp       uint32   `json:"DefaultPlayerExp"`

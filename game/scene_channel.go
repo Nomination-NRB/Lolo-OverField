@@ -327,7 +327,7 @@ func (c *ChannelInfo) GetPbScenePlayer(scenePlayer *ScenePlayer) (info *proto.Sc
 }
 
 func (c *ChannelInfo) GetPbSceneTeam(scenePlayer *ScenePlayer) (info *proto.SceneTeam) {
-	teamInfo := scenePlayer.GetTeamInfo()
+	teamInfo := scenePlayer.GetTeamModel().GetTeamInfo()
 	info = &proto.SceneTeam{
 		Char1: scenePlayer.GetPbSceneCharacter(teamInfo.Char1),
 		Char2: scenePlayer.GetPbSceneCharacter(teamInfo.Char2),
@@ -337,10 +337,10 @@ func (c *ChannelInfo) GetPbSceneTeam(scenePlayer *ScenePlayer) (info *proto.Scen
 }
 
 func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.SceneCharacter) {
-	characterInfo := s.GetCharacterInfo(characterId)
+	characterInfo := s.GetCharacterModel().GetCharacterInfo(characterId)
 	if characterInfo == nil {
 		log.Game.Warnf("玩家:%v队伍角色:%v不存在", s.UserId, characterId)
-		return
+		return new(proto.SceneCharacter)
 	}
 	info = &proto.SceneCharacter{
 		Pos: s.Pos,
@@ -349,7 +349,7 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 		CharId:              characterInfo.CharacterId,
 		CharLv:              characterInfo.Level,
 		CharStar:            characterInfo.Star,
-		CharacterAppearance: s.GetPbCharacterAppearance(characterInfo),
+		CharacterAppearance: characterInfo.GetPbCharacterAppearance(),
 		OutfitPreset:        s.GetPbSceneCharacterOutfitPreset(characterInfo),
 		WeaponId:            0,
 		WeaponStar:          0,
@@ -365,7 +365,7 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 	}
 	// 装备
 	{
-		equipmentPreset := s.GetEquipmentPreset(characterInfo, characterInfo.InUseEquipmentPresetIndex)
+		equipmentPreset := characterInfo.GetEquipmentPreset(characterInfo.InUseEquipmentPresetIndex)
 		if equipmentPreset == nil {
 			log.Game.Warnf("玩家:%v角色:%v装备序号:%v缺少",
 				s.UserId, characterInfo.CharacterId, characterInfo.InUseEquipmentPresetIndex)
@@ -385,47 +385,52 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 }
 
 func (s *ScenePlayer) GetPbSceneCharacterOutfitPreset(characterInfo *model.CharacterInfo) *proto.SceneCharacterOutfitPreset {
-	outfitPresetInfo := s.GetOutfitPreset(characterInfo, characterInfo.InUseOutfitPresetIndex)
-	if outfitPresetInfo == nil {
+	outfit := characterInfo.GetOutfitPreset(characterInfo.InUseOutfitPresetIndex)
+	if outfit == nil {
 		log.Game.Warnf("玩家:%v角色:%v外貌序号:%v缺少",
 			s.UserId, characterInfo.CharacterId, characterInfo.InUseOutfitPresetIndex)
 		return nil
 	}
-	getOutfitDyeScheme := func(id uint32) *proto.OutfitDyeScheme {
-		return &proto.OutfitDyeScheme{
-			SchemeIndex: 0,
-			Colors:      make([]*proto.PosColor, 0),
-			IsUnLock:    id != 0,
+	getODS := func(id, index uint32) *proto.OutfitDyeScheme {
+		fashionInfo := s.GetItemModel().GetItemFashionInfo(id)
+		if fashionInfo == nil ||
+			fashionInfo.GetDyeScheme(index) == nil {
+			return &proto.OutfitDyeScheme{
+				SchemeIndex: 0,
+				Colors:      make([]*proto.PosColor, 0),
+				IsUnLock:    false,
+			}
 		}
+		return fashionInfo.GetDyeScheme(index).OutfitDyeScheme()
 	}
 	info := &proto.SceneCharacterOutfitPreset{
-		Hat:                    outfitPresetInfo.Hat,
-		Hair:                   outfitPresetInfo.Hair,
-		Clothes:                outfitPresetInfo.Clothes,
-		Ornament:               outfitPresetInfo.Ornament,
-		HatDyeScheme:           getOutfitDyeScheme(outfitPresetInfo.Hat),
-		HairDyeScheme:          getOutfitDyeScheme(outfitPresetInfo.Hair),
-		ClothDyeScheme:         getOutfitDyeScheme(outfitPresetInfo.Clothes),
-		OrnDyeScheme:           getOutfitDyeScheme(0),
-		HideInfo:               outfitPresetInfo.OutfitHideInfo.OutfitHideInfo(),
-		PendTop:                0,
-		PendChest:              0,
-		PendPelvis:             0,
-		PendUpFace:             0,
-		PendDownFace:           0,
-		PendLeftHand:           0,
-		PendRightHand:          0,
-		PendLeftFoot:           0,
-		PendRightFoot:          0,
-		PendTopDyeScheme:       getOutfitDyeScheme(0),
-		PendChestDyeScheme:     getOutfitDyeScheme(0),
-		PendPelvisDyeScheme:    getOutfitDyeScheme(0),
-		PendUpFaceDyeScheme:    getOutfitDyeScheme(0),
-		PendDownFaceDyeScheme:  getOutfitDyeScheme(0),
-		PendLeftHandDyeScheme:  getOutfitDyeScheme(0),
-		PendRightHandDyeScheme: getOutfitDyeScheme(0),
-		PendLeftFootDyeScheme:  getOutfitDyeScheme(0),
-		PendRightFootDyeScheme: getOutfitDyeScheme(0),
+		Hat:                    outfit.Hat,
+		HatDyeScheme:           getODS(outfit.Hat, outfit.HatDyeSchemeIndex),
+		Hair:                   outfit.Hair,
+		HairDyeScheme:          getODS(outfit.Hair, outfit.HairDyeSchemeIndex),
+		Clothes:                outfit.Clothes,
+		ClothDyeScheme:         getODS(outfit.Clothes, outfit.ClothesDyeSchemeIndex),
+		Ornament:               outfit.Ornament,
+		OrnDyeScheme:           getODS(outfit.Ornament, outfit.OrnamentDyeSchemeIndex),
+		HideInfo:               outfit.OutfitHideInfo.OutfitHideInfo(),
+		PendTop:                outfit.PendTop,
+		PendTopDyeScheme:       getODS(outfit.PendTop, outfit.PendTopDyeSchemeIndex),
+		PendChest:              outfit.PendChest,
+		PendChestDyeScheme:     getODS(outfit.PendChest, outfit.PendChestDyeSchemeIndex),
+		PendPelvis:             outfit.PendPelvis,
+		PendPelvisDyeScheme:    getODS(outfit.PendPelvis, outfit.PendPelvisDyeSchemeIndex),
+		PendUpFace:             outfit.PendUpFace,
+		PendUpFaceDyeScheme:    getODS(outfit.PendUpFace, outfit.PendUpFaceDyeSchemeIndex),
+		PendDownFace:           outfit.PendDownFace,
+		PendDownFaceDyeScheme:  getODS(outfit.PendDownFace, outfit.PendDownFaceDyeSchemeIndex),
+		PendLeftHand:           outfit.PendLeftHand,
+		PendLeftHandDyeScheme:  getODS(outfit.PendLeftHand, outfit.PendLeftHandDyeSchemeIndex),
+		PendRightHand:          outfit.PendRightHand,
+		PendRightHandDyeScheme: getODS(outfit.PendRightHand, outfit.PendRightHandDyeSchemeIndex),
+		PendLeftFoot:           outfit.PendLeftFoot,
+		PendLeftFootDyeScheme:  getODS(outfit.PendLeftFoot, outfit.PendLeftFootDyeSchemeIndex),
+		PendRightFoot:          outfit.PendRightFoot,
+		PendRightFootDyeScheme: getODS(outfit.PendRightFoot, outfit.PendRightFootDyeSchemeIndex),
 	}
 
 	return info

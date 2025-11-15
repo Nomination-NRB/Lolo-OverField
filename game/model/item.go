@@ -31,6 +31,11 @@ func (s *Player) GetItemModel() *ItemModel {
 	return s.Item
 }
 
+func (i *ItemModel) InitItem() {
+	i.AddItemBase(gdconf.GetConstant().DefaultBadge, 1)
+	i.AddItemBase(gdconf.GetConstant().DefaultUmbrellaId, 1)
+}
+
 func (i *ItemModel) NextInstanceIndex() uint32 {
 	if i == nil {
 		return 0
@@ -367,53 +372,78 @@ func (i *ItemModel) GetItemFashionMap() map[uint32]*ItemFashionInfo {
 	return i.ItemFashionMap
 }
 
-func (i *ItemModel) AddItemFashionByItemId(itemId uint32) bool {
+func (i *ItemModel) GetItemFashionInfo(id uint32) *ItemFashionInfo {
+	list := i.GetItemFashionMap()
+	info, ok := list[id]
+	if !ok {
+		return nil
+	}
+	return info
+}
+
+func (i *ItemModel) AddItemFashionByItemId(itemId uint32) *ItemFashionInfo {
 	conf := gdconf.GetFashionAllInfoByItemId(itemId)
 	list := i.GetItemFashionMap()
 	if conf == nil || list == nil {
 		log.Game.Warnf("添加Fashion失败,数据异常或不存在ItemID:%v", itemId)
-		return false
+		return nil
 	}
-	if list[conf.FashionId] != nil {
-		return true
+	info, ok := list[conf.FashionId]
+	if !ok {
+		info = newItemFashionInfo(conf)
+		list[conf.FashionId] = info
 	}
-	list[conf.FashionId] = newItemFashionInfo(conf)
-	return true
+	return info
 }
 
-func (i *ItemModel) AddItemFashionByFashionId(fashionId uint32) bool {
+func (i *ItemModel) AddItemFashionByFashionId(fashionId uint32) *ItemFashionInfo {
 	conf := gdconf.GetFashionAllInfo(fashionId)
 	list := i.GetItemFashionMap()
 	if conf == nil || list == nil {
 		log.Game.Warnf("添加Fashion失败,数据异常或不存在FashionID:%v", fashionId)
-		return false
+		return nil
 	}
-	if list[conf.FashionId] != nil {
-		return true
+	info, ok := list[conf.FashionId]
+	if !ok {
+		info = newItemFashionInfo(conf)
+		list[conf.FashionId] = info
 	}
-	list[conf.FashionId] = newItemFashionInfo(conf)
-	return true
+	return info
 }
 
 func newItemFashionInfo(conf *gdconf.FashionAllInfo) *ItemFashionInfo {
-	return &ItemFashionInfo{
+	info := &ItemFashionInfo{
 		ItemId:     uint32(conf.FashionInfo.GetItemID()),
 		OutfitId:   conf.FashionId,
 		DyeSchemes: make(map[uint32]*OutfitDyeScheme),
 	}
+	info.DyeSchemes[0] = &OutfitDyeScheme{
+		SchemeIndex: 0,
+		IsUnLock:    true,
+		Colors:      make(Colors, 0),
+	}
+	return info
 }
 
-func (i *ItemFashionInfo) GetPbItemDetail() *proto.ItemDetail {
+func (f *ItemFashionInfo) GetDyeScheme(index uint32) *OutfitDyeScheme {
+	info, ok := f.DyeSchemes[index]
+	if !ok {
+		return nil
+	}
+	return info
+}
+
+func (f *ItemFashionInfo) GetPbItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
-			ItemId:  i.ItemId,
+			ItemId:  f.ItemId,
 			ItemTag: proto.EBagItemTag_EBagItemTag_Fashion,
 			Item: &proto.ItemInfo_Outfit{
 				Outfit: &proto.Outfit{
-					OutfitId: i.OutfitId,
+					OutfitId: f.OutfitId,
 					DyeSchemes: func() []*proto.OutfitDyeScheme {
 						list := make([]*proto.OutfitDyeScheme, 0)
-						for _, d := range i.DyeSchemes {
+						for _, d := range f.DyeSchemes {
 							alg.AddList(&list, d.OutfitDyeScheme())
 						}
 						return list

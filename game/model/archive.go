@@ -1,7 +1,12 @@
 package model
 
+import (
+	"gucooing/lolo/protocol/proto"
+)
+
 type ArchiveModel struct {
-	ArchiveMap map[string]string
+	ArchiveMap            map[string]string              `json:"archiveMap,omitempty"`
+	PosterIllustrationMap map[uint32]*PosterIllustration `json:"posterIllustrationMap,omitempty"`
 }
 
 func (s *Player) GetArchive() *ArchiveModel {
@@ -30,4 +35,9 @@ func (a *ArchiveModel) GetArchiveValue(k string) string {
 		return ""
 	}
 	return v
+}
+
+type PosterIllustration struct {
+	PosterIllustrationId uint32             `json:"posterIllustrationId,omitempty"`
+	RewardStatus         proto.RewardStatus `json:"rewardStatus,omitempty"`
 }

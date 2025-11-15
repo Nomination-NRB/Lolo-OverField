@@ -19,7 +19,7 @@ func (g *Game) UpdateTeam(s *model.Player, msg *alg.GameMsg) {
 		*target = char
 		return true
 	}
-	teamInfo := s.GetTeamInfo()
+	teamInfo := s.GetTeamModel().GetTeamInfo()
 	upChar(&teamInfo.Char1, req.Char1)
 	upChar(&teamInfo.Char2, req.Char2)
 	upChar(&teamInfo.Char3, req.Char3)
