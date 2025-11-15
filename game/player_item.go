@@ -17,27 +17,27 @@ func (g *Game) PackNotice(s *model.Player) {
 	defer g.send(s, cmd.PackNotice, 0, notice)
 	// 基础物品
 	for _, v := range s.GetItemModel().GetItemBaseMap() {
-		notice.Items = append(notice.Items, v.GetPbItemDetail())
+		notice.Items = append(notice.Items, v.ItemDetail())
 	}
 	// 服装
 	for _, v := range s.GetItemModel().GetItemFashionMap() {
-		notice.Items = append(notice.Items, v.GetPbItemDetail())
+		notice.Items = append(notice.Items, v.ItemDetail())
 	}
 	// 武器
 	for _, v := range s.GetItemModel().GetItemWeaponMap() {
-		notice.Items = append(notice.Items, v.GetPbItemDetail())
+		notice.Items = append(notice.Items, v.ItemDetail())
 	}
 	// 盔甲
 	for _, v := range s.GetItemModel().GetItemArmorMap() {
-		notice.Items = append(notice.Items, v.GetPbItemDetail())
+		notice.Items = append(notice.Items, v.ItemDetail())
 	}
 	// 海报
 	for _, v := range s.GetItemModel().GetItemPosterMap() {
-		notice.Items = append(notice.Items, v.GetPbItemDetail())
+		notice.Items = append(notice.Items, v.ItemDetail())
 	}
 	//
 	for _, v := range s.GetItemModel().GetItemInscriptionMap() {
-		notice.Items = append(notice.Items, v.GetPbItemDetail())
+		notice.Items = append(notice.Items, v.ItemDetail())
 	}
 }
 
@@ -53,7 +53,7 @@ func (g *Game) GetWeapon(s *model.Player, msg *alg.GameMsg) {
 	for _, v := range s.GetItemModel().GetItemWeaponMap() {
 		if req.WeaponSystemType == proto.EWeaponSystemType_EWeaponSystemType_None ||
 			req.WeaponSystemType == v.WeaponSystemType {
-			rsp.Weapons = append(rsp.Weapons, v.GetPbWeaponInstance())
+			rsp.Weapons = append(rsp.Weapons, v.WeaponInstance())
 		}
 	}
 }
@@ -70,7 +70,7 @@ func (g *Game) GetArmor(s *model.Player, msg *alg.GameMsg) {
 	for _, v := range s.GetItemModel().GetItemArmorMap() {
 		if req.WeaponSystemType == proto.EWeaponSystemType_EWeaponSystemType_None ||
 			req.WeaponSystemType == v.WeaponSystemType {
-			rsp.Armors = append(rsp.Armors, v.GetPbArmorInstance())
+			rsp.Armors = append(rsp.Armors, v.ArmorInstance())
 		}
 	}
 }
@@ -85,7 +85,7 @@ func (g *Game) GetPoster(s *model.Player, msg *alg.GameMsg) {
 	}
 	defer g.send(s, cmd.GetPosterRsp, msg.PacketId, rsp)
 	for _, v := range s.GetItemModel().GetItemPosterMap() {
-		alg.AddList(&rsp.Posters, v.GetPbPosterInstance())
+		alg.AddList(&rsp.Posters, v.PosterInstance())
 	}
 }
 

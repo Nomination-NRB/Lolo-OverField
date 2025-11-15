@@ -121,7 +121,7 @@ func (i *ItemModel) AllItemModel() {
 }
 
 type EBagItemTag interface {
-	GetPbItemDetail() *proto.ItemDetail
+	ItemDetail() *proto.ItemDetail
 }
 
 type ItemBaseInfo struct {
@@ -159,7 +159,7 @@ func (i *ItemModel) AddItemBase(itemId uint32, num int64) {
 	info.Num += num
 }
 
-func (i *ItemBaseInfo) GetPbItemDetail() *proto.ItemDetail {
+func (i *ItemBaseInfo) ItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
 			ItemId:  i.ItemId,
@@ -279,13 +279,13 @@ func newItemWeaponInfo(conf *gdconf.WeaponAllInfo, instanceId uint32) *ItemWeapo
 	}
 }
 
-func (i *ItemWeaponInfo) GetPbItemDetail() *proto.ItemDetail {
+func (i *ItemWeaponInfo) ItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
 			ItemId:  i.ItemId,
 			ItemTag: proto.EBagItemTag_EBagItemTag_Weapon,
 			Item: &proto.ItemInfo_Weapon{
-				Weapon: i.GetPbWeaponInstance(),
+				Weapon: i.WeaponInstance(),
 			},
 		},
 		PackType: proto.ItemDetail_PackType_Inventory,
@@ -297,7 +297,7 @@ func (i *ItemWeaponInfo) SetWearerId(id uint32) {
 	i.WearerId = id
 }
 
-func (i *ItemWeaponInfo) GetPbWeaponInstance() *proto.WeaponInstance {
+func (i *ItemWeaponInfo) WeaponInstance() *proto.WeaponInstance {
 	info := &proto.WeaponInstance{
 		WeaponId:       i.WeaponId,
 		InstanceId:     i.InstanceId,
@@ -433,7 +433,7 @@ func (f *ItemFashionInfo) GetDyeScheme(index uint32) *OutfitDyeScheme {
 	return info
 }
 
-func (f *ItemFashionInfo) GetPbItemDetail() *proto.ItemDetail {
+func (f *ItemFashionInfo) ItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
 			ItemId:  f.ItemId,
@@ -460,6 +460,7 @@ type ItemArmorInfo struct {
 	WeaponSystemType proto.EWeaponSystemType `json:"weaponSystemType,omitempty"` //  装备类型
 	ItemId           uint32                  `json:"itemId,omitempty"`
 	ArmorId          uint32                  `json:"armorId,omitempty"`
+	Star             uint32                  `json:"star,omitempty"`
 	InstanceId       uint32                  `json:"instanceId,omitempty"`
 	MainPropertyType proto.EPropertyType     `json:"mainPropertyType,omitempty"`
 	MainPropertyVal  uint32                  `json:"mainPropertyVal,omitempty"`
@@ -480,6 +481,15 @@ func (i *ItemModel) GetItemArmorMap() map[uint32]*ItemArmorInfo {
 		i.ItemArmorMap = make(map[uint32]*ItemArmorInfo)
 	}
 	return i.ItemArmorMap
+}
+
+func (i *ItemModel) GetItemArmorInfo(instanceId uint32) *ItemArmorInfo {
+	list := i.GetItemArmorMap()
+	info, ok := list[instanceId]
+	if !ok {
+		return nil
+	}
+	return info
 }
 
 func (i *ItemModel) AddItemArmorByItemId(itemId uint32) *ItemArmorInfo {
@@ -513,6 +523,7 @@ func newItemArmorInfo(conf *gdconf.ArmorAllInfo, instanceId uint32) *ItemArmorIn
 		WeaponSystemType: proto.EWeaponSystemType(conf.ArmorInfo.NewWeaponSystemType),
 		ItemId:           uint32(conf.ArmorInfo.GetItemID()),
 		ArmorId:          conf.ArmorId,
+		Star:             0,
 		InstanceId:       instanceId,
 		MainPropertyType: 0,
 		MainPropertyVal:  0,
@@ -526,13 +537,13 @@ func newItemArmorInfo(conf *gdconf.ArmorAllInfo, instanceId uint32) *ItemArmorIn
 	}
 }
 
-func (i *ItemArmorInfo) GetPbItemDetail() *proto.ItemDetail {
+func (a *ItemArmorInfo) ItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
-			ItemId:  i.InstanceId,
+			ItemId:  a.InstanceId,
 			ItemTag: proto.EBagItemTag_EBagItemTag_Armor,
 			Item: &proto.ItemInfo_Armor{
-				Armor: i.GetPbArmorInstance(),
+				Armor: a.ArmorInstance(),
 			},
 		},
 		PackType: proto.ItemDetail_PackType_Inventory,
@@ -540,22 +551,32 @@ func (i *ItemArmorInfo) GetPbItemDetail() *proto.ItemDetail {
 	return info
 }
 
-func (i *ItemArmorInfo) GetPbArmorInstance() *proto.ArmorInstance {
+func (a *ItemArmorInfo) ArmorInstance() *proto.ArmorInstance {
 	info := &proto.ArmorInstance{
-		ArmorId:          i.ArmorId,
-		InstanceId:       i.InstanceId,
-		MainPropertyType: i.MainPropertyType,
-		MainPropertyVal:  i.MainPropertyVal,
-		RandomProperty:   i.RandomProperty.RandomPropertys(),
-		WearerId:         i.WearerId,
-		Level:            i.Level,
-		StrengthLevel:    i.StrengthLevel,
-		StrengthExp:      i.StrengthExp,
-		PropertyIndex:    i.PropertyIndex,
-		IsLock:           i.IsLock,
+		ArmorId:          a.ArmorId,
+		InstanceId:       a.InstanceId,
+		MainPropertyType: a.MainPropertyType,
+		MainPropertyVal:  a.MainPropertyVal,
+		RandomProperty:   a.RandomProperty.RandomPropertys(),
+		WearerId:         a.WearerId,
+		Level:            a.Level,
+		StrengthLevel:    a.StrengthLevel,
+		StrengthExp:      a.StrengthExp,
+		PropertyIndex:    a.PropertyIndex,
+		IsLock:           a.IsLock,
 	}
 
 	return info
+}
+
+func (a *ItemArmorInfo) BaseArmor() *proto.BaseArmor {
+	if a == nil {
+		return nil
+	}
+	return &proto.BaseArmor{
+		ArmorId:   a.ArmorId,
+		ArmorStar: a.Star,
+	}
 }
 
 type ItemPosterInfo struct {
@@ -574,6 +595,15 @@ func (i *ItemModel) GetItemPosterMap() map[uint32]*ItemPosterInfo {
 		i.ItemPosterMap = make(map[uint32]*ItemPosterInfo)
 	}
 	return i.ItemPosterMap
+}
+
+func (i *ItemModel) GetItemPosterInfo(instanceId uint32) *ItemPosterInfo {
+	list := i.GetItemPosterMap()
+	info, ok := list[instanceId]
+	if !ok {
+		return nil
+	}
+	return info
 }
 
 func (i *ItemModel) AddItemPosterByItemId(itemId uint32) *ItemPosterInfo {
@@ -616,13 +646,13 @@ func newItemPosterInfo(conf *gdconf.PosterAllInfo, instanceId uint32) *ItemPoste
 	}
 }
 
-func (i *ItemPosterInfo) GetPbItemDetail() *proto.ItemDetail {
+func (p *ItemPosterInfo) ItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
-			ItemId:  i.InstanceId,
+			ItemId:  p.InstanceId,
 			ItemTag: proto.EBagItemTag_EBagItemTag_Poster,
 			Item: &proto.ItemInfo_Poster{
-				Poster: i.GetPbPosterInstance(),
+				Poster: p.PosterInstance(),
 			},
 		},
 		PackType: proto.ItemDetail_PackType_Inventory,
@@ -630,14 +660,24 @@ func (i *ItemPosterInfo) GetPbItemDetail() *proto.ItemDetail {
 	return info
 }
 
-func (i *ItemPosterInfo) GetPbPosterInstance() *proto.PosterInstance {
+func (p *ItemPosterInfo) PosterInstance() *proto.PosterInstance {
 	info := &proto.PosterInstance{
-		PosterId:   i.PosterId,
-		InstanceId: i.InstanceId,
-		WearerId:   i.WearerId,
-		Star:       i.Star,
+		PosterId:   p.PosterId,
+		InstanceId: p.InstanceId,
+		WearerId:   p.WearerId,
+		Star:       p.Star,
 	}
 	return info
+}
+
+func (p *ItemPosterInfo) BasePoster() *proto.BasePoster {
+	if p == nil {
+		return nil
+	}
+	return &proto.BasePoster{
+		PosterId:   p.PosterId,
+		PosterStar: p.Star,
+	}
 }
 
 type ItemInscriptionInfo struct {
@@ -698,7 +738,7 @@ func newItemInscriptionInfo(conf *gdconf.InscriptionAllInfo) *ItemInscriptionInf
 	}
 }
 
-func (i *ItemInscriptionInfo) GetPbItemDetail() *proto.ItemDetail {
+func (i *ItemInscriptionInfo) ItemDetail() *proto.ItemDetail {
 	info := &proto.ItemDetail{
 		MainItem: &proto.ItemInfo{
 			ItemId:  i.ItemId,

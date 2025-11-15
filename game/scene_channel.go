@@ -343,9 +343,8 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 		return new(proto.SceneCharacter)
 	}
 	info = &proto.SceneCharacter{
-		Pos: s.Pos,
-		Rot: s.Rot,
-
+		Pos:                 s.Pos,
+		Rot:                 s.Rot,
 		CharId:              characterInfo.CharacterId,
 		CharLv:              characterInfo.Level,
 		CharStar:            characterInfo.Star,
@@ -353,14 +352,14 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 		OutfitPreset:        s.GetPbSceneCharacterOutfitPreset(characterInfo),
 		WeaponId:            0,
 		WeaponStar:          0,
+		Armors:              make([]*proto.BaseArmor, 0),
+		Posters:             make([]*proto.BasePoster, 0),
 
 		GatherWeapon:  0,
 		IsDead:        false,
 		CharBreakLv:   0,
-		Armors:        make([]*proto.BaseArmor, 0),
 		InscriptionId: 0,
 		InscriptionLv: 0,
-		Posters:       make([]*proto.BasePoster, 0),
 		MpGameWeapon:  0,
 	}
 	// 装备
@@ -370,6 +369,7 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 			log.Game.Warnf("玩家:%v角色:%v装备序号:%v缺少",
 				s.UserId, characterInfo.CharacterId, characterInfo.InUseEquipmentPresetIndex)
 		} else {
+			// 武器
 			weaponInfo := s.GetItemModel().GetItemWeaponInfo(equipmentPreset.Weapon)
 			if weaponInfo == nil {
 				log.Game.Warnf("玩家:%v角色:%v装备-武器:%v缺少",
@@ -378,7 +378,18 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 				info.WeaponStar = weaponInfo.Star
 				info.WeaponId = weaponInfo.WeaponId
 			}
+			// 盔甲
+			for _, armor := range equipmentPreset.Armors {
+				item := s.GetItemModel().GetItemArmorInfo(armor.InstanceId)
+				alg.AddList(&info.Armors, item.BaseArmor())
+			}
+			// 海报
+			for _, poster := range equipmentPreset.Posters {
+				item := s.GetItemModel().GetItemPosterInfo(poster.InstanceId)
+				alg.AddList(&info.Posters, item.BasePoster())
+			}
 		}
+
 	}
 
 	return

@@ -103,7 +103,7 @@ func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
 		log.Game.Warnf("保存角色装备失败,角色%v不存在", req.CharId)
 		return
 	}
-	defer alg.AddList(&rsp.Character, characterInfo.GetPbCharacter())
+	defer alg.AddList(&rsp.Character, characterInfo.Character())
 
 	equipmentPreset := characterInfo.GetEquipmentPreset(req.EquipmentPreset.PresetIndex)
 	// 更新武器
@@ -113,14 +113,14 @@ func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
 		if newEquipmentInfo != nil &&
 			oldEquipmentInfo != nil {
 			oldEquipmentInfo.WearerId = 0
-			alg.AddList(&rsp.Items, oldEquipmentInfo.GetPbItemDetail())
+			alg.AddList(&rsp.Items, oldEquipmentInfo.ItemDetail())
 
 			if oldCharacterInfo := s.GetCharacterModel().GetCharacterInfo(newEquipmentInfo.WearerId); oldCharacterInfo != nil {
 				// 移除装备上的角色
 			}
 			newEquipmentInfo.WearerId = req.CharId
 			equipmentPreset.Weapon = newEquipmentInfo.InstanceId
-			alg.AddList(&rsp.Items, newEquipmentInfo.GetPbItemDetail())
+			alg.AddList(&rsp.Items, newEquipmentInfo.ItemDetail())
 		}
 	}
 	// 更新盔甲

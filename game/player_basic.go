@@ -159,7 +159,7 @@ func (g *Game) PlayerMainData(s *model.Player, msg *alg.GameMsg) {
 	}
 	// 队伍
 	{
-		rsp.Team = s.GetTeamModel().GetTeamInfo().GetPbTeam()
+		rsp.Team = s.GetTeamModel().GetTeamInfo().Team()
 	}
 	// buff
 	{

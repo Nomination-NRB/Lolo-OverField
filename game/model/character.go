@@ -131,12 +131,12 @@ func (s *Player) AddCharacter(characterId uint32) bool {
 func (c *CharacterModel) GetAllPbCharacter() []*proto.Character {
 	list := make([]*proto.Character, 0)
 	for _, characterInfo := range c.GetCharacterMap() {
-		alg.AddList(&list, characterInfo.GetPbCharacter())
+		alg.AddList(&list, characterInfo.Character())
 	}
 	return list
 }
 
-func (c *CharacterInfo) GetPbCharacter() *proto.Character {
+func (c *CharacterInfo) Character() *proto.Character {
 	pbInfo := &proto.Character{
 		CharacterId:               c.CharacterId,
 		Level:                     c.Level,
@@ -251,26 +251,26 @@ type EquipmentPreset struct {
 }
 
 type ArmorInfo struct {
-	EquipType proto.EEquipType `json:"equipType,omitempty"`
-	ArmorId   uint32           `json:"armorId,omitempty"`
+	EquipType  proto.EEquipType `json:"equipType,omitempty"`
+	InstanceId uint32           `json:"instanceId,omitempty"`
 }
 
 func (a *ArmorInfo) ArmorInfo() *proto.ArmorInfo {
 	return &proto.ArmorInfo{
 		EquipType: a.EquipType,
-		ArmorId:   a.ArmorId,
+		ArmorId:   a.InstanceId,
 	}
 }
 
 type PosterInfo struct {
 	PosterIndex proto.PosterInfo_PosterIndex `json:"posterIndex,omitempty"`
-	PosterId    uint32                       `json:"posterId,omitempty"`
+	InstanceId  uint32                       `json:"instanceId,omitempty"`
 }
 
 func (a *PosterInfo) PosterInfo() *proto.PosterInfo {
 	return &proto.PosterInfo{
 		PosterIndex: a.PosterIndex,
-		PosterId:    a.PosterId,
+		PosterId:    a.InstanceId,
 	}
 }
 
@@ -289,15 +289,15 @@ func newEquipmentPreset(characterId, presetIndex uint32) *EquipmentPreset {
 	// 添加盔甲
 	for _, tag := range proto.EEquipType_value {
 		info.Armors[proto.EEquipType(tag)] = &ArmorInfo{
-			EquipType: proto.EEquipType(tag),
-			ArmorId:   0,
+			EquipType:  proto.EEquipType(tag),
+			InstanceId: 0,
 		}
 	}
 	// 添加海报
 	for _, index := range proto.PosterInfo_PosterIndex_value {
 		info.Posters[proto.PosterInfo_PosterIndex(index)] = &PosterInfo{
 			PosterIndex: proto.PosterInfo_PosterIndex(index),
-			PosterId:    0,
+			InstanceId:  0,
 		}
 	}
 	return info

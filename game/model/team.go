@@ -43,7 +43,7 @@ func (t *TeamModel) GetTeamInfo() *TeamInfo {
 	return t.TeamInfo
 }
 
-func (t *TeamInfo) GetPbTeam() *proto.Team {
+func (t *TeamInfo) Team() *proto.Team {
 	info := &proto.Team{
 		Char1: t.Char1,
 		Char2: t.Char2,
