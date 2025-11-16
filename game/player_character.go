@@ -90,6 +90,52 @@ func (g *Game) CharacterLevelUp(s *model.Player, msg *alg.GameMsg) {
 	rsp.Exp = characterInfo.Exp
 }
 
+func (g *Game) CharacterLevelBreak(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.CharacterLevelBreakReq)
+	rsp := &proto.CharacterLevelBreakRsp{
+		Status:   proto.StatusCode_StatusCode_OK,
+		CharId:   req.CharId,
+		Level:    0,
+		Exp:      0,
+		MaxLevel: 0,
+	}
+	defer g.send(s, cmd.CharacterLevelBreakRsp, msg.PacketId, rsp)
+	characterInfo := s.GetCharacterModel().GetCharacterInfo(req.CharId)
+	if characterInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_CHARACTER_PLACED
+		log.Game.Warnf("保存角色升级失败,角色%v不存在", req.CharId)
+		return
+	}
+	conf := gdconf.GetCharacterAll(characterInfo.CharacterId)
+	if len(conf.LevelRules) < int(characterInfo.BreakLevel) {
+		rsp.Status = proto.StatusCode_StatusCode_CHARACTER_PLACED
+		return
+	}
+	// 申请事务
+	tx, err := s.GetItemModel().Begin()
+	if err != nil {
+		rsp.Status = proto.StatusCode_StatusCode_ITEM_NOT_ENOUGH
+		log.Game.Errorf("玩家:%v申请背包事务失败:%s", s.UserId, err.Error())
+		return
+	}
+	for _, itemInfo := range conf.LevelRules[int(characterInfo.BreakLevel)].RuleNeedItem {
+		if tx.DelBaseItem(uint32(itemInfo.NeedItemID), int64(itemInfo.NeedItemCount)).Error != nil {
+			tx.Rollback()
+			rsp.Status = proto.StatusCode_StatusCode_EXPLORE_NUM_LIMIT
+			log.Game.Errorf("玩家:%v扣除背包物品失败:%s", s.UserId, tx.Error.Error())
+			return
+		}
+	}
+	tx.Commit()
+	g.send(s, cmd.PackNotice, 0, tx.PackNotice)
+
+	characterInfo.BreakLevel++
+	characterInfo.UpMaxLevel()
+	rsp.MaxLevel = characterInfo.MaxLevel
+	rsp.Level = characterInfo.Level
+	rsp.Exp = characterInfo.Exp
+}
+
 func (g *Game) OutfitPresetUpdate(s *model.Player, msg *alg.GameMsg) {
 	req := msg.Body.(*proto.OutfitPresetUpdateReq)
 	rsp := &proto.OutfitPresetUpdateRsp{
@@ -164,24 +210,37 @@ func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
 		log.Game.Warnf("保存角色装备失败,角色%v不存在", req.CharId)
 		return
 	}
-	defer alg.AddList(&rsp.Character, characterInfo.Character())
+	defer func() {
+		alg.AddList(&rsp.Character, characterInfo.Character())
+	}()
 
 	equipmentPreset := characterInfo.GetEquipmentPreset(req.EquipmentPreset.PresetIndex)
 	// 更新武器
-	if req.EquipmentPreset.Weapon != equipmentPreset.Weapon {
-		oldEquipmentInfo := s.GetItemModel().GetItemWeaponInfo(equipmentPreset.Weapon)
+	if req.EquipmentPreset.Weapon != equipmentPreset.WeaponInstanceId {
+		oldEquipmentInfo := s.GetItemModel().GetItemWeaponInfo(equipmentPreset.WeaponInstanceId)
 		newEquipmentInfo := s.GetItemModel().GetItemWeaponInfo(req.EquipmentPreset.Weapon)
-		if newEquipmentInfo != nil &&
-			oldEquipmentInfo != nil {
+
+		if newEquipmentInfo != nil {
+			oldCharacterInfo := s.GetCharacterModel().GetCharacterInfo(newEquipmentInfo.WearerId)
+			if oldCharacterInfo != nil {
+				// 移除装备上的角色
+				for _, oldCharacterEquipmentPreset := range oldCharacterInfo.GetEquipmentPresetList() {
+					if oldCharacterEquipmentPreset.WeaponInstanceId == newEquipmentInfo.InstanceId {
+						oldCharacterEquipmentPreset.WeaponInstanceId = 0
+						alg.AddList(&rsp.Character, oldCharacterInfo.Character())
+						break
+					}
+				}
+			}
+
+			equipmentPreset.WeaponInstanceId = newEquipmentInfo.InstanceId
+			newEquipmentInfo.WearerId = characterInfo.CharacterId
+			alg.AddList(&rsp.Items, newEquipmentInfo.ItemDetail())
+		}
+
+		if oldEquipmentInfo != nil {
 			oldEquipmentInfo.WearerId = 0
 			alg.AddList(&rsp.Items, oldEquipmentInfo.ItemDetail())
-
-			if oldCharacterInfo := s.GetCharacterModel().GetCharacterInfo(newEquipmentInfo.WearerId); oldCharacterInfo != nil {
-				// 移除装备上的角色
-			}
-			newEquipmentInfo.WearerId = req.CharId
-			equipmentPreset.Weapon = newEquipmentInfo.InstanceId
-			alg.AddList(&rsp.Items, newEquipmentInfo.ItemDetail())
 		}
 	}
 	// 更新盔甲

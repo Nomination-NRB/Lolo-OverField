@@ -370,10 +370,10 @@ func (s *ScenePlayer) GetPbSceneCharacter(characterId uint32) (info *proto.Scene
 				s.UserId, characterInfo.CharacterId, characterInfo.InUseEquipmentPresetIndex)
 		} else {
 			// 武器
-			weaponInfo := s.GetItemModel().GetItemWeaponInfo(equipmentPreset.Weapon)
+			weaponInfo := s.GetItemModel().GetItemWeaponInfo(equipmentPreset.WeaponInstanceId)
 			if weaponInfo == nil {
 				log.Game.Warnf("玩家:%v角色:%v装备-武器:%v缺少",
-					s.UserId, characterInfo.CharacterId, equipmentPreset.Weapon)
+					s.UserId, characterInfo.CharacterId, equipmentPreset.WeaponInstanceId)
 			} else {
 				info.WeaponStar = weaponInfo.Star
 				info.WeaponId = weaponInfo.WeaponId

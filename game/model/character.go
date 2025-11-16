@@ -101,29 +101,29 @@ func (s *Player) AddCharacter(characterId uint32) bool {
 		return true
 	}
 	characterInfo := newCharacterInfo(characterId)
-	characterInfo.upMaxLevel()
+	characterInfo.UpMaxLevel()
 	list[characterId] = characterInfo
 	// 初始化装备
 	preset := characterInfo.GetEquipmentPreset(characterInfo.InUseEquipmentPresetIndex)
-	itemWeapon := s.GetItemModel().AddItemWeaponByWeaponId(uint32(conf.CharacterInfo.DefaultWeaponID))
+	itemWeapon := s.GetItemModel().AddItemWeapon(uint32(conf.CharacterInfo.DefaultWeaponID))
 	if itemWeapon == nil {
 		log.Game.Warnf("角色:%v,添加默认武器:%v失败", characterId, conf.CharacterInfo.DefaultWeaponID)
 		return false
 	}
 	itemWeapon.SetWearerId(characterId)
-	preset.Weapon = itemWeapon.InstanceId
+	preset.WeaponInstanceId = itemWeapon.InstanceId
 	// 初始化外观
 	for index := uint32(0); index < gdconf.GetConstant().OutfitPresetNum; index++ {
 		outfit := characterInfo.GetOutfitPreset(index)
-		if hat := s.GetItemModel().AddItemFashionByFashionId(
+		if hat := s.GetItemModel().AddItemFashion(
 			uint32(conf.CharacterInfo.HatID)); hat != nil {
 			outfit.Hat = uint32(conf.CharacterInfo.HatID)
 		}
-		if hair := s.GetItemModel().AddItemFashionByFashionId(
+		if hair := s.GetItemModel().AddItemFashion(
 			uint32(conf.CharacterInfo.HairID)); hair != nil {
 			outfit.Hair = uint32(conf.CharacterInfo.HairID)
 		}
-		if cloth := s.GetItemModel().AddItemFashionByFashionId(
+		if cloth := s.GetItemModel().AddItemFashion(
 			uint32(conf.CharacterInfo.ClothID)); cloth != nil {
 			outfit.Clothes = uint32(conf.CharacterInfo.ClothID)
 		}
@@ -140,7 +140,7 @@ func (c *CharacterModel) GetAllPbCharacter() []*proto.Character {
 	return list
 }
 
-func (c *CharacterInfo) upMaxLevel() {
+func (c *CharacterInfo) UpMaxLevel() {
 	conf := gdconf.GetCharacterAll(c.CharacterId)
 	if c.BreakLevel < 1 ||
 		len(conf.LevelRules) < int(c.BreakLevel) {
@@ -259,10 +259,10 @@ func (c *CharacterInfo) GetPbCharacterSkillList() []*proto.CharacterSkill {
 }
 
 type EquipmentPreset struct {
-	PresetIndex uint32                                       `json:"presetIndex,omitempty"`
-	Weapon      uint32                                       `json:"weapon,omitempty"`
-	Armors      map[proto.EEquipType]*ArmorInfo              `json:"armors,omitempty"`
-	Posters     map[proto.PosterInfo_PosterIndex]*PosterInfo `json:"posters,omitempty"`
+	PresetIndex      uint32                                       `json:"presetIndex,omitempty"`
+	WeaponInstanceId uint32                                       `json:"weaponInstanceId,omitempty"`
+	Armors           map[proto.EEquipType]*ArmorInfo              `json:"armors,omitempty"`
+	Posters          map[proto.PosterInfo_PosterIndex]*PosterInfo `json:"posters,omitempty"`
 }
 
 type ArmorInfo struct {
@@ -289,17 +289,15 @@ func (a *PosterInfo) PosterInfo() *proto.PosterInfo {
 	}
 }
 
-func newEquipmentPreset(characterId, presetIndex uint32) *EquipmentPreset {
-	conf := gdconf.GetCharacterAll(characterId)
-	if conf == nil {
-		log.Game.Warnf("角色:%v获取初始装备套装失败", characterId)
-		return nil
-	}
+func newEquipmentPreset(presetIndex uint32) *EquipmentPreset {
 	info := &EquipmentPreset{
-		PresetIndex: presetIndex,
-		Weapon:      0,
-		Armors:      make(map[proto.EEquipType]*ArmorInfo),
-		Posters:     make(map[proto.PosterInfo_PosterIndex]*PosterInfo),
+		PresetIndex:      presetIndex,
+		WeaponInstanceId: 0,
+		Armors:           make(map[proto.EEquipType]*ArmorInfo),
+		Posters:          make(map[proto.PosterInfo_PosterIndex]*PosterInfo),
+	}
+	if presetIndex != 0 { // kfkj 666 抽象
+		return info
 	}
 	// 添加盔甲
 	for _, tag := range proto.EEquipType_value {
@@ -329,7 +327,7 @@ func (c *CharacterInfo) GetEquipmentPreset(index uint32) *EquipmentPreset {
 	list := c.GetEquipmentPresetList()
 	info, ok := list[index]
 	if !ok {
-		info = newEquipmentPreset(c.CharacterId, index)
+		info = newEquipmentPreset(index)
 		list[index] = info
 	}
 	return info
@@ -338,7 +336,7 @@ func (c *CharacterInfo) GetEquipmentPreset(index uint32) *EquipmentPreset {
 func (e *EquipmentPreset) EquipmentPreset() *proto.EquipmentPreset {
 	info := &proto.EquipmentPreset{
 		PresetIndex: e.PresetIndex,
-		Weapon:      e.Weapon,
+		Weapon:      e.WeaponInstanceId,
 		Armors:      make([]*proto.ArmorInfo, 0),
 		Posters:     make([]*proto.PosterInfo, 0),
 	}

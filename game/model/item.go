@@ -58,7 +58,6 @@ func (i *ItemModel) AllItemModel() {
 			proto.EBagItemTag_EBagItemTag_Collection,
 			proto.EBagItemTag_EBagItemTag_Card,
 			proto.EBagItemTag_EBagItemTag_Material,
-			proto.EBagItemTag_EBagItemTag_Currency,
 			proto.EBagItemTag_EBagItemTag_Food,
 			proto.EBagItemTag_EBagItemTag_SpellCard,
 			proto.EBagItemTag_EBagItemTag_Item,
@@ -100,27 +99,31 @@ func (i *ItemModel) AllItemModel() {
 			proto.EBagItemTag_EBagItemTag_BattlePassGiftCard,
 			proto.EBagItemTag_EBagItemTag_SeasonalMiniGamesItem:
 			for _, conf := range confList {
-				i.AddItemBase(uint32(conf.ID), 999)
+				i.AddItemBase(uint32(conf.ID), 9999)
+			}
+		case proto.EBagItemTag_EBagItemTag_Currency:
+			for _, conf := range confList {
+				i.AddItemBase(uint32(conf.ID), 99999999)
 			}
 		case proto.EBagItemTag_EBagItemTag_Weapon:
 			for _, conf := range confList {
-				i.AddItemWeaponByItemId(uint32(conf.ID))
+				i.AddItemWeapon(uint32(conf.ID))
 			}
 		case proto.EBagItemTag_EBagItemTag_Fashion:
 			for _, conf := range confList {
-				i.AddItemFashionByItemId(uint32(conf.ID))
+				i.AddItemFashion(uint32(conf.ID))
 			}
 		case proto.EBagItemTag_EBagItemTag_Armor:
 			for _, conf := range confList {
-				i.AddItemArmorByItemId(uint32(conf.ID))
+				i.AddItemArmor(uint32(conf.ID))
 			}
 		case proto.EBagItemTag_EBagItemTag_Poster:
 			for _, conf := range confList {
-				i.AddItemPosterByItemId(uint32(conf.ID))
+				i.AddItemPoster(uint32(conf.ID))
 			}
 		case proto.EBagItemTag_EBagItemTag_Inscription:
 			for _, conf := range confList {
-				i.AddItemInscriptionByItemId(uint32(conf.ID))
+				i.AddItemInscription(uint32(conf.ID))
 			}
 		}
 	}
@@ -244,21 +247,7 @@ func (i *ItemModel) GetItemWeaponInfo(instanceId uint32) *ItemWeaponInfo {
 	return list[instanceId]
 }
 
-func (i *ItemModel) AddItemWeaponByItemId(itemId uint32) *ItemWeaponInfo {
-	conf := gdconf.GetWeaponAllInfoByItemId(itemId)
-	list := i.GetItemWeaponMap()
-	if conf == nil || list == nil {
-		log.Game.Warnf("添加Weapon失败,数据异常或不存在ItemID:%v", itemId)
-		return nil
-	}
-	instanceId := i.NextInstanceIndex()
-	info := newItemWeaponInfo(conf, instanceId)
-	list[instanceId] = info
-
-	return info
-}
-
-func (i *ItemModel) AddItemWeaponByWeaponId(weaponId uint32) *ItemWeaponInfo {
+func (i *ItemModel) AddItemWeapon(weaponId uint32) *ItemWeaponInfo {
 	conf := gdconf.GetWeaponAllInfo(weaponId)
 	list := i.GetItemWeaponMap()
 	if conf == nil || list == nil {
@@ -266,14 +255,7 @@ func (i *ItemModel) AddItemWeaponByWeaponId(weaponId uint32) *ItemWeaponInfo {
 		return nil
 	}
 	instanceId := i.NextInstanceIndex()
-	info := newItemWeaponInfo(conf, instanceId)
-	list[instanceId] = info
-
-	return info
-}
-
-func newItemWeaponInfo(conf *gdconf.WeaponAllInfo, instanceId uint32) *ItemWeaponInfo {
-	return &ItemWeaponInfo{
+	info := &ItemWeaponInfo{
 		ItemId:           uint32(conf.WeaponInfo.GetItemID()),
 		WeaponId:         conf.WeaponId,
 		InstanceId:       instanceId,
@@ -292,6 +274,9 @@ func newItemWeaponInfo(conf *gdconf.WeaponAllInfo, instanceId uint32) *ItemWeapo
 		PropertyIndex:    1, //
 		IsLock:           false,
 	}
+	list[instanceId] = info
+
+	return info
 }
 
 func (i *ItemWeaponInfo) ItemDetail() *proto.ItemDetail {
@@ -396,22 +381,7 @@ func (i *ItemModel) GetItemFashionInfo(id uint32) *ItemFashionInfo {
 	return info
 }
 
-func (i *ItemModel) AddItemFashionByItemId(itemId uint32) *ItemFashionInfo {
-	conf := gdconf.GetFashionAllInfoByItemId(itemId)
-	list := i.GetItemFashionMap()
-	if conf == nil || list == nil {
-		log.Game.Warnf("添加Fashion失败,数据异常或不存在ItemID:%v", itemId)
-		return nil
-	}
-	info, ok := list[conf.FashionId]
-	if !ok {
-		info = newItemFashionInfo(conf)
-		list[conf.FashionId] = info
-	}
-	return info
-}
-
-func (i *ItemModel) AddItemFashionByFashionId(fashionId uint32) *ItemFashionInfo {
+func (i *ItemModel) AddItemFashion(fashionId uint32) *ItemFashionInfo {
 	conf := gdconf.GetFashionAllInfo(fashionId)
 	list := i.GetItemFashionMap()
 	if conf == nil || list == nil {
@@ -507,20 +477,7 @@ func (i *ItemModel) GetItemArmorInfo(instanceId uint32) *ItemArmorInfo {
 	return info
 }
 
-func (i *ItemModel) AddItemArmorByItemId(itemId uint32) *ItemArmorInfo {
-	conf := gdconf.GetArmorAllInfoByItemId(itemId)
-	list := i.GetItemArmorMap()
-	if conf == nil || list == nil {
-		log.Game.Warnf("添加Armor失败,数据异常或不存在ItemID:%v", itemId)
-		return nil
-	}
-	instanceId := i.NextInstanceIndex()
-	info := newItemArmorInfo(conf, instanceId)
-	list[instanceId] = info
-	return info
-}
-
-func (i *ItemModel) AddItemArmorByArmorId(armorId uint32) *ItemArmorInfo {
+func (i *ItemModel) AddItemArmor(armorId uint32) *ItemArmorInfo {
 	conf := gdconf.GetArmorAllInfo(armorId)
 	list := i.GetItemArmorMap()
 	if conf == nil || list == nil {
@@ -528,13 +485,7 @@ func (i *ItemModel) AddItemArmorByArmorId(armorId uint32) *ItemArmorInfo {
 		return nil
 	}
 	instanceId := i.NextInstanceIndex()
-	info := newItemArmorInfo(conf, instanceId)
-	list[instanceId] = info
-	return info
-}
-
-func newItemArmorInfo(conf *gdconf.ArmorAllInfo, instanceId uint32) *ItemArmorInfo {
-	return &ItemArmorInfo{
+	info := &ItemArmorInfo{
 		WeaponSystemType: proto.EWeaponSystemType(conf.ArmorInfo.NewWeaponSystemType),
 		ItemId:           uint32(conf.ArmorInfo.GetItemID()),
 		ArmorId:          conf.ArmorId,
@@ -550,6 +501,8 @@ func newItemArmorInfo(conf *gdconf.ArmorAllInfo, instanceId uint32) *ItemArmorIn
 		PropertyIndex:    1,
 		IsLock:           false,
 	}
+	list[instanceId] = info
+	return info
 }
 
 func (a *ItemArmorInfo) ItemDetail() *proto.ItemDetail {
@@ -621,22 +574,7 @@ func (i *ItemModel) GetItemPosterInfo(instanceId uint32) *ItemPosterInfo {
 	return info
 }
 
-func (i *ItemModel) AddItemPosterByItemId(itemId uint32) *ItemPosterInfo {
-	conf := gdconf.GetPosterAllInfoByItemId(itemId)
-	list := i.GetItemPosterMap()
-	if conf == nil || list == nil ||
-		!conf.PosterIllustration.IsShow {
-		log.Game.Warnf("添加Poster失败,数据异常或不存在ItemID:%v", itemId)
-		return nil
-	}
-	instanceId := i.NextInstanceIndex()
-	info := newItemPosterInfo(conf, instanceId)
-	list[instanceId] = info
-
-	return info
-}
-
-func (i *ItemModel) AddItemPosterByPosterId(posterId uint32) *ItemPosterInfo {
+func (i *ItemModel) AddItemPoster(posterId uint32) *ItemPosterInfo {
 	conf := gdconf.GetPosterAllInfo(posterId)
 	list := i.GetItemPosterMap()
 	if conf == nil || list == nil ||
@@ -712,23 +650,7 @@ func (i *ItemModel) GetItemInscriptionMap() map[uint32]*ItemInscriptionInfo {
 	return i.ItemInscriptionMap
 }
 
-func (i *ItemModel) AddItemInscriptionByItemId(itemId uint32) *ItemInscriptionInfo {
-	conf := gdconf.GetInscriptionAllInfoByItemId(itemId)
-	list := i.GetItemInscriptionMap()
-	if conf == nil || list == nil {
-		log.Game.Warnf("添加Inscription失败,数据异常或不存在ItemID:%v", itemId)
-		return nil
-	}
-	if _, ok := list[conf.InscriptionId]; ok {
-		return nil
-	}
-	info := newItemInscriptionInfo(conf)
-	list[conf.InscriptionId] = info
-
-	return info
-}
-
-func (i *ItemModel) AddItemInscriptionByPosterId(inscriptionId uint32) *ItemInscriptionInfo {
+func (i *ItemModel) AddItemInscription(inscriptionId uint32) *ItemInscriptionInfo {
 	conf := gdconf.GetInscriptionAllInfo(inscriptionId)
 	list := i.GetItemInscriptionMap()
 	if conf == nil || list == nil {
@@ -738,19 +660,15 @@ func (i *ItemModel) AddItemInscriptionByPosterId(inscriptionId uint32) *ItemInsc
 	if _, ok := list[conf.InscriptionId]; ok {
 		return nil
 	}
-	info := newItemInscriptionInfo(conf)
-	list[conf.InscriptionId] = info
-
-	return info
-}
-
-func newItemInscriptionInfo(conf *gdconf.InscriptionAllInfo) *ItemInscriptionInfo {
-	return &ItemInscriptionInfo{
+	info := &ItemInscriptionInfo{
 		ItemId:           uint32(conf.InscriptionInfo.GetItemID()),
 		InscriptionId:    conf.InscriptionId,
 		Level:            1,
 		WeaponInstanceId: 0,
 	}
+	list[conf.InscriptionId] = info
+
+	return info
 }
 
 func (i *ItemInscriptionInfo) ItemDetail() *proto.ItemDetail {

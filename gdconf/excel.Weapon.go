@@ -5,9 +5,8 @@ import (
 )
 
 type Weapon struct {
-	all                *excel.AllWeaponDatas
-	WeaponAllMap       map[uint32]*WeaponAllInfo
-	WeaponAllMapByItem map[uint32]*WeaponAllInfo
+	all          *excel.AllWeaponDatas
+	WeaponAllMap map[uint32]*WeaponAllInfo
 }
 
 type WeaponAllInfo struct {
@@ -17,9 +16,8 @@ type WeaponAllInfo struct {
 
 func (g *GameConfig) loadWeapon() {
 	info := &Weapon{
-		all:                new(excel.AllWeaponDatas),
-		WeaponAllMap:       make(map[uint32]*WeaponAllInfo),
-		WeaponAllMapByItem: make(map[uint32]*WeaponAllInfo),
+		all:          new(excel.AllWeaponDatas),
+		WeaponAllMap: make(map[uint32]*WeaponAllInfo),
 	}
 	g.Excel.Weapon = info
 	name := "Weapon.json"
@@ -35,17 +33,15 @@ func (g *GameConfig) loadWeapon() {
 	}
 
 	for _, v := range info.all.GetWeapon().GetDatas() {
+		if v.ID != v.ItemID {
+			continue
+		}
 		getWeaponAllInfo(v.ID).WeaponInfo = v
-		info.WeaponAllMapByItem[uint32(v.ItemID)] = getWeaponAllInfo(v.ID)
 	}
 }
 
 func GetWeaponAllInfo(id uint32) *WeaponAllInfo {
 	return cc.Excel.Weapon.WeaponAllMap[id]
-}
-
-func GetWeaponAllInfoByItemId(itemId uint32) *WeaponAllInfo {
-	return cc.Excel.Weapon.WeaponAllMapByItem[itemId]
 }
 
 func GetWeaponAllMap() map[uint32]*WeaponAllInfo {

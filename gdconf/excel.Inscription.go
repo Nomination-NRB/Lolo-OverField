@@ -5,9 +5,8 @@ import (
 )
 
 type Inscription struct {
-	all                     *excel.AllInscriptionDatas
-	InscriptionAllMap       map[uint32]*InscriptionAllInfo
-	InscriptionAllMapByItem map[uint32]*InscriptionAllInfo
+	all               *excel.AllInscriptionDatas
+	InscriptionAllMap map[uint32]*InscriptionAllInfo
 }
 
 type InscriptionAllInfo struct {
@@ -17,9 +16,8 @@ type InscriptionAllInfo struct {
 
 func (g *GameConfig) loadInscription() {
 	info := &Inscription{
-		all:                     new(excel.AllInscriptionDatas),
-		InscriptionAllMap:       make(map[uint32]*InscriptionAllInfo),
-		InscriptionAllMapByItem: make(map[uint32]*InscriptionAllInfo),
+		all:               new(excel.AllInscriptionDatas),
+		InscriptionAllMap: make(map[uint32]*InscriptionAllInfo),
 	}
 	g.Excel.Inscription = info
 	name := "Inscription.json"
@@ -35,17 +33,15 @@ func (g *GameConfig) loadInscription() {
 	}
 
 	for _, v := range info.all.GetInscription().GetDatas() {
+		if v.ID != v.ItemID {
+			continue
+		}
 		getInscriptionAllInfo(v.ID).InscriptionInfo = v
-		info.InscriptionAllMapByItem[uint32(v.ItemID)] = getInscriptionAllInfo(v.ID)
 	}
 }
 
 func GetInscriptionAllInfo(id uint32) *InscriptionAllInfo {
 	return cc.Excel.Inscription.InscriptionAllMap[id]
-}
-
-func GetInscriptionAllInfoByItemId(itemId uint32) *InscriptionAllInfo {
-	return cc.Excel.Inscription.InscriptionAllMapByItem[itemId]
 }
 
 func GetInscriptionAllMap() map[uint32]*InscriptionAllInfo {

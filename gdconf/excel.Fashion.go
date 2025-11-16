@@ -5,9 +5,8 @@ import (
 )
 
 type Fashion struct {
-	all                 *excel.AllFashionDatas
-	FashionAllMap       map[uint32]*FashionAllInfo
-	FashionAllMapByItem map[uint32]*FashionAllInfo
+	all           *excel.AllFashionDatas
+	FashionAllMap map[uint32]*FashionAllInfo
 }
 
 type FashionAllInfo struct {
@@ -17,9 +16,8 @@ type FashionAllInfo struct {
 
 func (g *GameConfig) loadFashion() {
 	info := &Fashion{
-		all:                 new(excel.AllFashionDatas),
-		FashionAllMap:       make(map[uint32]*FashionAllInfo),
-		FashionAllMapByItem: make(map[uint32]*FashionAllInfo),
+		all:           new(excel.AllFashionDatas),
+		FashionAllMap: make(map[uint32]*FashionAllInfo),
 	}
 	g.Excel.Fashion = info
 	name := "Fashion.json"
@@ -35,17 +33,15 @@ func (g *GameConfig) loadFashion() {
 	}
 
 	for _, v := range info.all.GetFashionInfo().GetDatas() {
+		if v.ID != v.ItemID {
+			continue
+		}
 		getFashionAllInfo(v.ID).FashionInfo = v
-		info.FashionAllMapByItem[uint32(v.ItemID)] = getFashionAllInfo(v.ID)
 	}
 }
 
 func GetFashionAllInfo(id uint32) *FashionAllInfo {
 	return cc.Excel.Fashion.FashionAllMap[id]
-}
-
-func GetFashionAllInfoByItemId(itemId uint32) *FashionAllInfo {
-	return cc.Excel.Fashion.FashionAllMapByItem[itemId]
 }
 
 func GetFashionAllMap() map[uint32]*FashionAllInfo {

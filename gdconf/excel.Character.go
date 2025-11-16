@@ -71,7 +71,7 @@ func AddCharacterExp(levelId, oldExp int32, oldLevel, maxLevel uint32) (newLevel
 	levelMap := GetCharacterLevelMap(levelId)
 	for {
 		if oldLevel >= maxLevel {
-			return oldLevel, uint32(oldExp)
+			return oldLevel, 0
 		}
 		conf, ok := levelMap[oldLevel]
 		if !ok || oldExp < conf.NeedExp {

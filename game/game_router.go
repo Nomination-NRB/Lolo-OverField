@@ -35,6 +35,7 @@ func (g *Game) newRouter() {
 		// 角色
 		cmd.GetCharacterAchievementListReq: g.GetCharacterAchievementList, // 获取角色成就情况
 		cmd.CharacterLevelUpReq:            g.CharacterLevelUp,            // 角色升级
+		cmd.CharacterLevelBreakReq:         g.CharacterLevelBreak,         // 角色突破
 		cmd.OutfitPresetUpdateReq:          g.OutfitPresetUpdate,          // 保存预设装扮
 		cmd.CharacterEquipUpdateReq:        g.CharacterEquipUpdate,        // 角色更新装备
 		// cmd.UpdateCharacterAppearanceReq:   g.UpdateCharacterAppearance,   // 更新角色外观
