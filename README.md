@@ -1,5 +1,5 @@
 # lolo
-箱庭游戏服务端部分实现
+开放空间/OverField 服务端部分实现
 
 ## 使用方法
 1. 编译Lolo `go build main.go` 得到main或main.exe
