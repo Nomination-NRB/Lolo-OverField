@@ -1,4 +1,7 @@
 # lolo
+
+[![Discord](https://img.shields.io/badge/Join-Discord-blue?logo=discord&logoSize=auto)](https://discord.gg/GNKBE7X75d)
+
 开放空间/OverField 服务端部分实现
 
 支持的客户端版本:cn-最新(ios/windows/android/是cn客户端都支持)
