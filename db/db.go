@@ -39,6 +39,9 @@ func NewDB() error {
 		&OFGame{},
 		&BlackDevice{},
 		&OFUser{},
+		&OFFriendInfo{},
+		&OFFriendRequest{},
+		&OFFriend{},
 	)
 
 	db.Create(&OFUser{

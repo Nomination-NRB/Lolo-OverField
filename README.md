@@ -3,12 +3,16 @@
 
 支持的客户端版本:cn-最新(ios/windows/android/是cn客户端都支持)
 
+## 如何获取
+1. 自编译
+2. 前往[releases](https://github.com/BanterSR/Lolo/releases)或[actions](https://github.com/BanterSR/Lolo/actions)下载最新版
+  
+
 ## 使用方法
-1. 编译Lolo `go build main.go` 得到main或main.exe
-2. 下载运行必要文件 [data](https://github.com/BanterSR/Lolo/tree/main/data)和[LoloResource](https://github.com/BanterSR/LoloResource) 分别保存到`data`文件夹和`Resource`文件夹中
-3. 用各种方法代理客户端http:`http://dsp-prod-of.inutan.com:18881/dispatch/region_info` 到服务器http （默认:`http://127.0.0.1:18881`）
-4. 使用`main/main.exe -g`生成`config.json`修改`config.json`文件
-5. 启动Lolo和客户端
+1. 下载运行必要文件 [data](https://github.com/BanterSR/Lolo/tree/main/data)和[LoloResource](https://github.com/BanterSR/LoloResource) 分别保存到`data`文件夹和`Resource`文件夹中
+2. 用各种方法代理客户端http:`http://dsp-prod-of.inutan.com:18881/dispatch/region_info` 到服务器http （默认:`http://127.0.0.1:18881`）
+3. 使用`main/main.exe -g`生成`config.json`修改`config.json`文件
+4. 启动Lolo和客户端
 
 ## 已实现功能
 

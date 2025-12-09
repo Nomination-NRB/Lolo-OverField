@@ -32,3 +32,10 @@ func NoZero[T comparable](a *T, b T) {
 		*a = b
 	}
 }
+
+func Uint32UniqueUint64(a, b uint32) uint64 {
+	if a > b {
+		return uint64(a)<<32 | uint64(b)
+	}
+	return uint64(b)<<32 | uint64(a)
+}

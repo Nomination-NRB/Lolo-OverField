@@ -21,6 +21,7 @@ type Game struct {
 	userMap             map[uint32]*model.Player
 	handlerFuncRouteMap map[uint32]HandlerFunc
 	wordInfo            *WordInfo
+	chatInfo            *ChatInfo
 	checkPlayerTimer    *time.Timer
 	doneChan            chan struct{}
 }
