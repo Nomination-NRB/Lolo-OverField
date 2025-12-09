@@ -149,7 +149,7 @@ func (g *Game) PlayerMainData(s *model.Player, msg *alg.GameMsg) {
 		rsp.IsHideBirthday = basic.IsHideBirthday
 		rsp.PhoneBackground = basic.PhoneBackground
 		rsp.Appearance = &proto.PlayerAppearance{
-			AvatarFrame: 0,
+			AvatarFrame: basic.AvatarFrame,
 			Pendant:     0,
 		}
 	}

@@ -63,6 +63,7 @@ func (c *Cache[K, V]) Get(k K) (V, bool) {
 		var v V
 		return v, false
 	}
+	ojb.(*valueInterface).activeTime = time.Now()
 
 	return ojb.(*valueInterface).v.(V), ok
 }

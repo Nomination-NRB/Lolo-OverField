@@ -6,6 +6,7 @@ import (
 	"github.com/bytedance/sonic"
 	pb "google.golang.org/protobuf/proto"
 
+	"gucooing/lolo/db"
 	"gucooing/lolo/game/model"
 	"gucooing/lolo/pkg/alg"
 	"gucooing/lolo/pkg/log"
@@ -319,6 +320,11 @@ func (c *ChannelInfo) GetPbSceneData() (info *proto.SceneData) {
 }
 
 func (c *ChannelInfo) GetPbScenePlayer(scenePlayer *ScenePlayer) (info *proto.ScenePlayer) {
+	basic, err := db.GetUserBasic(scenePlayer.UserId)
+	if err != nil {
+		log.Game.Errorf("UserId:%v获取玩家基础数据失败:%s", scenePlayer.UserId, err.Error())
+		return
+	}
 	info = &proto.ScenePlayer{
 		PlayerId:              scenePlayer.UserId,
 		PlayerName:            scenePlayer.NickName,
@@ -326,8 +332,8 @@ func (c *ChannelInfo) GetPbScenePlayer(scenePlayer *ScenePlayer) (info *proto.Sc
 		Status:                new(proto.ScenePlayerActionStatus),
 		FoodBuffIds:           make([]uint32, 0),
 		GlobalBuffIds:         make([]uint32, 0),
-		IsBirthday:            false, // 是生日？
-		AvatarFrame:           0,     // 头像框
+		IsBirthday:            false,             // 是生日？
+		AvatarFrame:           basic.AvatarFrame, // 头像框
 		MusicalItemId:         0,
 		MusicalItemSource:     0,
 		MusicalItemInstanceId: 0,

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"gucooing/lolo/pkg/cache"
+	"gucooing/lolo/protocol/proto"
 )
 
 var (
@@ -11,15 +12,19 @@ var (
 )
 
 type UserBasic struct {
-	UserId          uint32 `gorm:"primaryKey;not null"`
-	NickName        string `gorm:"default:'gucooing'"`
-	Level           uint32 `gorm:"default:1"`
-	Sign            string `gorm:"default:''"`
-	Exp             uint32 `gorm:"default:0"`
-	Head            uint32 `gorm:"default:41101"`
+	UserId          uint32         `gorm:"primaryKey;not null"`
+	NickName        string         `gorm:"default:'gucooing'"`
+	Level           uint32         `gorm:"default:1"`
+	Exp             uint32         `gorm:"default:0"`
+	Head            uint32         `gorm:"default:41101"`
+	LastLoginTime   int64          `gorm:"default:0"`    // 上次登录时间
+	Sex             proto.ESexType `gorm:"default:0"`    // 性别
+	PhoneBackground uint32         `gorm:"default:8000"` // 手机背景
+	Sign            string         `gorm:"default:''"`
+	CreatedAt       time.Time
 	Birthday        string `gorm:"default:''"`
 	IsHideBirthday  bool   `gorm:"default:false"`
-	PhoneBackground uint32 `gorm:"default:8000"` // 手机背景
+	AvatarFrame     uint32 `gorm:"default:0"`
 }
 
 // 获取玩家基础信息
