@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	basicCache = cache.New[uint32, *UserBasic](3 * time.Second)
+	basicCache = cache.New[uint32, *UserBasic](5 * time.Second)
 )
 
 type UserBasic struct {
@@ -21,10 +21,11 @@ type UserBasic struct {
 	Sex             proto.ESexType `gorm:"default:0"`    // 性别
 	PhoneBackground uint32         `gorm:"default:8000"` // 手机背景
 	Sign            string         `gorm:"default:''"`
-	CreatedAt       time.Time
-	Birthday        string `gorm:"default:''"`
-	IsHideBirthday  bool   `gorm:"default:false"`
-	AvatarFrame     uint32 `gorm:"default:0"`
+	CreatedAt       time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"`
+	Birthday        string         `gorm:"default:''"`
+	IsHideBirthday  bool           `gorm:"default:false"`
+	AvatarFrame     uint32         `gorm:"default:0"`
 }
 
 // 获取玩家基础信息

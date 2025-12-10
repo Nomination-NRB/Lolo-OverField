@@ -48,8 +48,7 @@ func (g *Game) PlayerLogin(conn ofnet.Conn, userId uint32, msg *alg.GameMsg) {
 			Conn:      conn,
 			Online:    true,
 			NetFreeze: false,
-			Created:   dbUser.CreatedAt,
-			Updated:   dbUser.UpdatedAt,
+			Created:   basic.CreatedAt,
 		}
 		if dbUser.BinData != nil {
 			if err := sonic.Unmarshal(dbUser.BinData, s); err != nil {
@@ -198,9 +197,12 @@ func (g *Game) loginGame(s *model.Player) {
 	g.joinSceneChannel(s)
 	/*
 		s.ChangeChatChannel()
-
 	*/
 	g.ChatMsgRecordInitNotice(s)
+	g.send(s, 0, &proto.GmNotice{
+		Status: proto.StatusCode_StatusCode_OK,
+		Notice: alg.GmNotice,
+	})
 }
 
 func (g *Game) PlayerPing(s *model.Player, msg *alg.GameMsg) {

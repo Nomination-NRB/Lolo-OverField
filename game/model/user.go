@@ -16,7 +16,6 @@ type Player struct {
 	Online        bool            `json:"-"`
 	NetFreeze     bool            `json:"-"`
 	Created       time.Time       `json:"-"`                       // 创建时间
-	Updated       time.Time       `json:"-"`                       // 更新时间
 	ActiveTime    time.Time       `json:"-"`                       // 上一次活跃时间
 	LastSaveTime  time.Time       `json:"-"`                       // 上一次数据保存时间
 	UserId        uint32          `json:"-"`                       // 玩家id

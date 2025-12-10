@@ -42,6 +42,11 @@ func (g *Game) newRouter() {
 		// 信息记录
 		cmd.GetArchiveInfoReq: g.GetArchiveInfo, // 获取记录的信息
 		cmd.SetArchiveInfoReq: g.SetArchiveInfo, // 设置信息
+		// 好友
+		cmd.FriendReq:       g.Friend,       // 获取好友聚合请求
+		cmd.FriendAddReq:    g.FriendAdd,    // 添加好友请求
+		cmd.FriendHandleReq: g.FriendHandle, // 处理好友申请
+		cmd.FriendDelReq:    g.FriendDel,    // 删除好友关系
 		// 星云树
 		cmd.GetCollectMoonInfoReq: g.GetCollectMoonInfo, // 获取星云树信息
 
@@ -56,7 +61,6 @@ func (g *Game) newRouter() {
 		cmd.AbilityBadgeListReq:      g.AbilityBadgeList,
 		cmd.SceneProcessListReq:      g.SceneProcessList,
 		cmd.ShopInfoReq:              g.ShopInfo,
-		cmd.FriendReq:                g.Friend,
 		cmd.WishListByFriendIdReq:    g.WishListByFriendId,
 		cmd.GetLifeInfoReq:           g.GetLifeInfo,
 		cmd.GetMailsReq:              g.GetMails,
