@@ -43,6 +43,7 @@ func NewDB() error {
 		&OFFriendInfo{},
 		&OFFriendRequest{},
 		&OFFriend{},
+		&OFFriendBlack{},
 	)
 
 	db.Create(&OFUser{
@@ -100,6 +101,10 @@ func getGormConfig() *gorm.Config {
 			SingularTable: true,
 		},
 	}
-	info.Logger = gromlogger.Default.LogMode(gromlogger.Silent)
+	if config.GetMode() == config.ModeDev {
+		info.Logger = gromlogger.Default.LogMode(gromlogger.Silent)
+	} else {
+		info.Logger = gromlogger.Default.LogMode(gromlogger.Info)
+	}
 	return info
 }
