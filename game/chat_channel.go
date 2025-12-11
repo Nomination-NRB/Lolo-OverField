@@ -165,11 +165,10 @@ func (c *ChatChannel) addUser(s *ChannelUser) {
 	}
 	// 同步历史消息
 	msgNum := alg.MinInt(syncRecordInitMsgNum, len(c.msgList))
-	msgList := make([]*proto.ChatMsgData, 0, msgNum)
-	for i := 0; i < msgNum; i++ {
-		alg.AddList(&msgList, c.msgList[i])
+	if msgNum > 0 {
+		msgList := c.msgList[len(c.msgList)-msgNum:]
+		c.ChatMsgRecordInitNotice(s.Player, msgList)
 	}
-	c.ChatMsgRecordInitNotice(s.Player, msgList)
 }
 
 func (c *ChatChannel) delUser(userId uint32) {
@@ -188,7 +187,7 @@ func (c *ChatChannel) allSendMsg(msg *proto.ChatMsgData) {
 	if len(c.msgList) >= maxCapacity {
 		retainCount := maxCapacity * 8 / 10
 		newList := make([]*proto.ChatMsgData, retainCount, maxCapacity)
-		copy(newList, c.msgList[:retainCount])
+		copy(newList, c.msgList[len(c.msgList)-retainCount:])
 		c.msgList = newList
 	}
 	alg.AddList(&c.msgList, msg)
