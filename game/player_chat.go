@@ -94,11 +94,12 @@ func (g *Game) SendChatMsg(s *model.Player, msg *alg.GameMsg) {
 		}
 		// 如果在线就通知过去
 		if user := g.GetUser(req.PlayerId); user != nil {
-			go g.ChatMsgPrivateRecordInitNotice(user, []*db.OFChatPrivateMsg{privateMsg})
+			go g.ChatPrivateMsgNotice(user, privateMsg)
 		}
 	}
 }
 
+// 历史消息同步通知
 func (g *Game) ChatMsgPrivateRecordInitNotice(s *model.Player, msgs []*db.OFChatPrivateMsg) {
 	notice := &proto.ChatMsgRecordInitNotice{
 		Status: proto.StatusCode_StatusCode_OK,
@@ -117,4 +118,14 @@ func (g *Game) ChatMsgPrivateRecordInitNotice(s *model.Player, msgs []*db.OFChat
 	default:
 		g.send(s, 0, notice)
 	}
+}
+
+// 实时消息通知
+func (g *Game) ChatPrivateMsgNotice(s *model.Player, msg *db.OFChatPrivateMsg) {
+	notice := &proto.ChatMsgNotice{
+		Status: proto.StatusCode_StatusCode_OK,
+		Type:   proto.ChatChannelType_ChatChannel_Private,
+		Msg:    model.GetUserChatMsgData(msg.OFChatMsg, msg.UserId),
+	}
+	defer g.send(s, 0, notice)
 }
