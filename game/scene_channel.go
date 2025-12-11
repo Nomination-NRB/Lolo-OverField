@@ -19,6 +19,7 @@ var (
 )
 
 type ChannelInfo struct {
+	game             *Game
 	SceneInfo        *SceneInfo                            // 所属场景
 	ChannelId        uint32                                // 房间号
 	allPlayer        map[uint32]*ScenePlayer               // 当前房间的全部玩家
@@ -27,6 +28,7 @@ type ChannelInfo struct {
 	doneChan         chan struct{}                         // done
 	sceneSyncDatas   []*proto.SceneSyncData                // 一个tick中待同步的内容
 	sceneServerDatas map[uint32]*proto.ServerSceneSyncData // 一个tick中玩家变动内容
+	chatChannel      *ChatChannel                          // 当前场景的聊天房间
 	// chan
 	freezeChan           chan struct{}             // 冻结/解冻通道
 	addScenePlayerChan   chan *ScenePlayer         // 玩家进入通道
@@ -38,10 +40,12 @@ type ChannelInfo struct {
 
 func (s *SceneInfo) newChannelInfo(channelId uint32) *ChannelInfo {
 	info := &ChannelInfo{
+		game:                 s.game,
 		SceneInfo:            s,
 		ChannelId:            channelId,
 		allPlayer:            make(map[uint32]*ScenePlayer),
 		weatherType:          proto.WeatherType_WeatherType_SUNNY,
+		chatChannel:          newChatChannel(),
 		doneChan:             make(chan struct{}),
 		freezeChan:           make(chan struct{}, 1),
 		addScenePlayerChan:   make(chan *ScenePlayer, 10),
@@ -53,9 +57,17 @@ func (s *SceneInfo) newChannelInfo(channelId uint32) *ChannelInfo {
 		actionSyncChan:       make(chan *ActionSyncCtx, 100),
 	}
 
+	info.chatChannel.doneChan = info.doneChan
+	info.chatChannel.Type = proto.ChatChannelType_ChatChannel_Default
+
+	go info.chatChannel.channelMainLoop()
 	go info.channelMainLoop()
 
 	return info
+}
+
+func (c *ChannelInfo) Close() {
+	close(c.doneChan)
 }
 
 func (c *ChannelInfo) getAllPlayer() map[uint32]*ScenePlayer {
@@ -181,6 +193,8 @@ func (c *ChannelInfo) addPlayer(scenePlayer *ScenePlayer) bool {
 		ScenePlayer: scenePlayer,
 		ActionType:  proto.SceneActionType_SceneActionType_ENTER,
 	})
+
+	c.chatChannel.addUserChan <- c.game.getChatInfo().getChannelSceneUser(scenePlayer.Player)
 	return true
 }
 
@@ -193,6 +207,8 @@ func (c *ChannelInfo) delPlayer(scenePlayer *ScenePlayer) {
 		ScenePlayer: scenePlayer,
 		ActionType:  proto.SceneActionType_SceneActionType_LEAVE,
 	})
+
+	c.chatChannel.delUserChan <- scenePlayer.UserId
 }
 
 // 通知客户端场景信息

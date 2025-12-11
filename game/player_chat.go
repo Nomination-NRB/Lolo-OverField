@@ -95,6 +95,12 @@ func (g *Game) SendChatMsg(s *model.Player, msg *alg.GameMsg) {
 	chatMsgData := model.GetUserChatMsgData(chatMsg, req.PlayerId)
 	switch req.Type {
 	case proto.ChatChannelType_ChatChannel_Default: // 默认消息是房间消息
+		scenePlayer := g.getWordInfo().getScenePlayer(s)
+		if scenePlayer != nil &&
+			scenePlayer.channelInfo == nil &&
+			scenePlayer.channelInfo.chatChannel != nil {
+			scenePlayer.channelInfo.chatChannel.allSendMsgChan <- chatMsgData
+		}
 	case proto.ChatChannelType_ChatChannel_ChatRoom: // 聊天房间
 		chatChannel := g.getChatInfo().getChannelUser(s)
 		if chatChannel.channel == nil {

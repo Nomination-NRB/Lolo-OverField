@@ -17,11 +17,13 @@ var (
 )
 
 type WordInfo struct {
+	game           *Game
 	allScene       map[uint32]*SceneInfo // 整个服务上的全部场景
 	allScenePlayer sync.Map              // 整个服务上的全部场景玩家对象
 }
 
 type SceneInfo struct {
+	game       *Game
 	cfg        *config.SceneInfo       // 场景配置
 	SceneId    uint32                  // 场景id
 	allChannel map[uint32]*ChannelInfo // 全部房间
@@ -40,7 +42,9 @@ type ScenePlayer struct {
 
 func (g *Game) getWordInfo() *WordInfo {
 	if g.wordInfo == nil {
-		g.wordInfo = new(WordInfo)
+		g.wordInfo = &WordInfo{
+			game: g,
+		}
 	}
 	return g.wordInfo
 }
@@ -62,6 +66,7 @@ func (w *WordInfo) getSceneInfo(sceneId uint32) (*SceneInfo, error) {
 		return nil, errors.New("ScenesConfigAsset.json配置文件中没有该场景")
 	}
 	info := &SceneInfo{
+		game:       w.game,
 		cfg:        cfg,
 		SceneId:    sceneId,
 		allChannel: make(map[uint32]*ChannelInfo),

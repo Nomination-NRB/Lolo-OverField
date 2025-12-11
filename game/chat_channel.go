@@ -27,8 +27,9 @@ func (g *Game) chatInit(s *model.Player) {
 }
 
 type ChatInfo struct {
-	allChatChannel map[uint32]*ChatChannel // 聊天房间集合
-	allChannelUser sync.Map                // 全部房间用户
+	allChatChannel      map[uint32]*ChatChannel // 聊天房间集合
+	allChannelUser      sync.Map                // 全部房间用户
+	allChannelSceneUser sync.Map                // 全部场景房间用户
 }
 
 type ChannelUser struct {
@@ -39,8 +40,9 @@ type ChannelUser struct {
 func (g *Game) getChatInfo() *ChatInfo {
 	if g.chatInfo == nil {
 		chatInfo := &ChatInfo{
-			allChatChannel: make(map[uint32]*ChatChannel),
-			allChannelUser: sync.Map{},
+			allChatChannel:      make(map[uint32]*ChatChannel),
+			allChannelUser:      sync.Map{},
+			allChannelSceneUser: sync.Map{},
 		}
 		g.chatInfo = chatInfo
 	}
@@ -75,6 +77,20 @@ func (c *ChatInfo) getChannelUser(s *model.Player) *ChannelUser {
 			Player: s,
 		}
 		c.allChannelUser.Store(s.UserId, user)
+	} else {
+		user = value.(*ChannelUser)
+	}
+	return user
+}
+
+func (c *ChatInfo) getChannelSceneUser(s *model.Player) *ChannelUser {
+	var user *ChannelUser
+	value, ok := c.allChannelSceneUser.Load(s.UserId)
+	if !ok {
+		user = &ChannelUser{
+			Player: s,
+		}
+		c.allChannelSceneUser.Store(s.UserId, user)
 	} else {
 		user = value.(*ChannelUser)
 	}
