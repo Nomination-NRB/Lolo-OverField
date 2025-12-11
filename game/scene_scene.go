@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"sync"
 
 	"gucooing/lolo/game/model"
 	"gucooing/lolo/gdconf"
@@ -16,8 +17,8 @@ var (
 )
 
 type WordInfo struct {
-	allScene       map[uint32]*SceneInfo   // 整个服务上的全部场景
-	allScenePlayer map[uint32]*ScenePlayer // 整个服务上的全部场景玩家对象
+	allScene       map[uint32]*SceneInfo // 整个服务上的全部场景
+	allScenePlayer sync.Map              // 整个服务上的全部场景玩家对象
 }
 
 type SceneInfo struct {
@@ -69,20 +70,13 @@ func (w *WordInfo) getSceneInfo(sceneId uint32) (*SceneInfo, error) {
 	return info, nil
 }
 
-func (w *WordInfo) getAllScenePlayer() map[uint32]*ScenePlayer {
-	if w.allScenePlayer == nil {
-		w.allScenePlayer = make(map[uint32]*ScenePlayer)
-	}
-	return w.allScenePlayer
-}
-
 func (w *WordInfo) getScenePlayer(player *model.Player) *ScenePlayer {
-	list := w.getAllScenePlayer()
-	if info, ok := list[player.UserId]; ok {
-		return info
+	value, ok := w.allScenePlayer.Load(player.UserId)
+	if !ok {
+		// 场景中没有该玩家
+		return nil
 	}
-	// 场景中没有该玩家
-	return nil
+	return value.(*ScenePlayer)
 }
 
 func (w *WordInfo) getChannel(sceneId, channelId uint32) (*ChannelInfo, error) {
@@ -120,9 +114,9 @@ func (s *SceneInfo) getSceneChannel(channelId uint32) (*ChannelInfo, error) {
 
 // 添加场景玩家对象
 func (w *WordInfo) addScenePlayer(player *model.Player) *ScenePlayer {
-	list := w.getAllScenePlayer()
-	if info, ok := list[player.UserId]; ok {
-		return info
+	value, ok := w.allScenePlayer.Load(player.UserId)
+	if ok {
+		return value.(*ScenePlayer)
 	}
 	defaultSceneId := gdconf.GetConstant().DefaultSceneId
 	defaultChannelId := gdconf.GetConstant().DefaultChannelId
@@ -146,7 +140,7 @@ func (w *WordInfo) addScenePlayer(player *model.Player) *ScenePlayer {
 		SceneId:   defaultSceneId,   // 默认场景
 		ChannelId: defaultChannelId, // 默认房间
 	}
-	list[player.UserId] = info
+	w.allScenePlayer.Store(player.UserId, info)
 	return info
 }
 
@@ -173,11 +167,11 @@ func (w *WordInfo) joinSceneChannel(s *model.Player) {
 }
 
 func (w *WordInfo) killScenePlayer(player *model.Player) {
-	scenePlayer := w.getScenePlayer(player)
-	if scenePlayer == nil {
+	value, ok := w.allScenePlayer.LoadAndDelete(player.UserId)
+	if !ok {
 		return
 	}
-	delete(w.getAllScenePlayer(), player.UserId)
+	scenePlayer := value.(*ScenePlayer)
 	if scenePlayer.channelInfo != nil {
 		scenePlayer.channelInfo.delScenePlayerChan <- scenePlayer // 退出房间
 	}

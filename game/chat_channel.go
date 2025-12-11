@@ -6,6 +6,7 @@ import (
 	"gucooing/lolo/pkg/alg"
 	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/proto"
+	"sync"
 )
 
 var (
@@ -27,7 +28,7 @@ func (g *Game) chatInit(s *model.Player) {
 
 type ChatInfo struct {
 	allChatChannel map[uint32]*ChatChannel // 聊天房间集合
-	allChannelUser map[uint32]*ChannelUser // 全部房间用户
+	allChannelUser sync.Map                // 全部房间用户
 }
 
 type ChannelUser struct {
@@ -39,7 +40,7 @@ func (g *Game) getChatInfo() *ChatInfo {
 	if g.chatInfo == nil {
 		chatInfo := &ChatInfo{
 			allChatChannel: make(map[uint32]*ChatChannel),
-			allChannelUser: make(map[uint32]*ChannelUser),
+			allChannelUser: sync.Map{},
 		}
 		g.chatInfo = chatInfo
 	}
@@ -66,21 +67,16 @@ func (c *ChatInfo) getChatChannel(channelId uint32) *ChatChannel {
 	return channel
 }
 
-func (c *ChatInfo) getChannelUserMap() map[uint32]*ChannelUser {
-	if c.allChannelUser == nil {
-		c.allChannelUser = make(map[uint32]*ChannelUser)
-	}
-	return c.allChannelUser
-}
-
 func (c *ChatInfo) getChannelUser(s *model.Player) *ChannelUser {
-	all := c.getChannelUserMap()
-	user, ok := all[s.UserId]
+	var user *ChannelUser
+	value, ok := c.allChannelUser.Load(s.UserId)
 	if !ok {
 		user = &ChannelUser{
 			Player: s,
 		}
-		all[s.UserId] = user
+		c.allChannelUser.Store(s.UserId, user)
+	} else {
+		user = value.(*ChannelUser)
 	}
 	return user
 }
@@ -96,6 +92,17 @@ func (c *ChatInfo) joinChatChannel(s *model.Player) {
 	user := c.getChannelUser(s)
 
 	channel.addUserChan <- user
+}
+
+func (c *ChatInfo) killChannelUser(player *model.Player) {
+	value, ok := c.allChannelUser.LoadAndDelete(player.UserId)
+	if !ok {
+		return
+	}
+	user := value.(*ChannelUser)
+	if user.channel != nil {
+		user.channel.delUserChan <- player.UserId // 退出房间
+	}
 }
 
 // ChatChannel 聊天房间对象
