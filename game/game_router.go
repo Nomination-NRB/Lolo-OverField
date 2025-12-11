@@ -51,6 +51,7 @@ func (g *Game) newRouter() {
 		// 聊天
 		cmd.PrivateChatMsgRecordReq: g.PrivateChatMsgRecord, // 获取私聊聊天记录
 		cmd.SendChatMsgReq:          g.SendChatMsg,          // 发送聊天消息
+		cmd.ChangeChatChannelReq:    g.ChangeChatChannel,    // 切换聊天房间
 		// 星云树
 		cmd.GetCollectMoonInfoReq: g.GetCollectMoonInfo, // 获取星云树信息
 

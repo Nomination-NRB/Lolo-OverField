@@ -60,6 +60,26 @@ func (g *Game) PrivateChatMsgRecord(s *model.Player, msg *alg.GameMsg) {
 	}
 }
 
+func (g *Game) ChangeChatChannel(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.ChangeChatChannelReq)
+	rsp := &proto.ChangeChatChannelRsp{
+		Status:    proto.StatusCode_StatusCode_OK,
+		ChannelId: req.ChannelId,
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	chatChannel := g.getChatInfo().getChannelUser(s)
+	if chatChannel.channel != nil {
+		chatChannel.channel.delUserChan <- s.UserId
+	}
+	channel := g.getChatInfo().getChatChannel(req.ChannelId)
+	if channel == nil {
+		rsp.Status = proto.StatusCode_StatusCode_CHAT_CHANNEL_NOT_EXIST
+		log.Game.Errorf("UserId:%v ChatChannel:%v 聊天房间不存在chatChannel.channel", s.UserId, req.ChannelId)
+		return
+	}
+	channel.addUserChan <- chatChannel
+}
+
 func (g *Game) SendChatMsg(s *model.Player, msg *alg.GameMsg) {
 	req := msg.Body.(*proto.SendChatMsgReq)
 	rsp := &proto.SendChatMsgRsp{
