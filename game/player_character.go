@@ -140,22 +140,12 @@ func (g *Game) OutfitPresetUpdate(s *model.Player, msg *alg.GameMsg) {
 	rsp := &proto.OutfitPresetUpdateRsp{
 		Status: proto.StatusCode_StatusCode_OK,
 		CharId: req.CharId,
-		Preset: req.Preset,
+		Preset: nil,
 	}
 	defer func() {
 		g.send(s, msg.PacketId, rsp)
-		teamInfo := s.GetTeamModel().GetTeamInfo()
-		scenePlayer := g.getWordInfo().getScenePlayer(s)
-		if (req.CharId == teamInfo.Char1 ||
-			req.CharId == teamInfo.Char2 ||
-			req.CharId == teamInfo.Char3) &&
-			(scenePlayer != nil &&
-				scenePlayer.channelInfo != nil) {
-			scenePlayer.channelInfo.serverSceneSyncChan <- &ServerSceneSyncCtx{
-				ScenePlayer: scenePlayer,
-				ActionType:  proto.SceneActionType_SceneActionType_UPDATE_FASHION,
-			}
-		}
+		g.SceneActionCharacterUpdate(
+			s, proto.SceneActionType_SceneActionType_UPDATE_FASHION, req.CharId)
 	}()
 	characterInfo := s.GetCharacterModel().GetCharacterInfo(req.CharId)
 	if characterInfo == nil {
@@ -163,6 +153,9 @@ func (g *Game) OutfitPresetUpdate(s *model.Player, msg *alg.GameMsg) {
 		return
 	}
 	outfitPreset := characterInfo.GetOutfitPreset(req.Preset.PresetIndex)
+	defer func() {
+		rsp.Preset = outfitPreset.OutfitPreset()
+	}()
 
 	outfitPreset.Hat = req.Preset.Hat
 	outfitPreset.HatDyeSchemeIndex = req.Preset.HatDyeSchemeIndex
@@ -304,4 +297,33 @@ func (g *Game) CharacterEquipUpdate(s *model.Player, msg *alg.GameMsg) {
 			curPoster.InstanceId = poster.PosterId
 		}
 	}
+}
+
+func (g *Game) UpdateCharacterAppearance(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.UpdateCharacterAppearanceReq)
+	rsp := &proto.UpdateCharacterAppearanceRsp{
+		Status:     proto.StatusCode_StatusCode_OK,
+		CharId:     req.CharId,
+		Appearance: nil,
+	}
+	defer func() {
+		g.send(s, msg.PacketId, rsp)
+		g.SceneActionCharacterUpdate(s, proto.SceneActionType_SceneActionType_UPDATE_APPEARANCE, req.CharId)
+	}()
+	characterInfo := s.GetCharacterModel().GetCharacterInfo(req.CharId)
+	if characterInfo == nil {
+		log.Game.Warnf("保存角色外观失败,角色%v不存在", req.CharId)
+		return
+	}
+	characterInfo.CharacterAppearance = &model.CharacterAppearance{
+		Badge:                      req.Appearance.Badge,
+		UmbrellaId:                 req.Appearance.UmbrellaId,
+		InsectNetInstanceId:        req.Appearance.InsectNetInstanceId,
+		LoggingAxeInstanceId:       req.Appearance.LoggingAxeInstanceId,
+		WaterBottleInstanceId:      req.Appearance.WaterBottleInstanceId,
+		MiningHammerInstanceId:     req.Appearance.MiningHammerInstanceId,
+		CollectionGlovesInstanceId: req.Appearance.CollectionGlovesInstanceId,
+		FishingRodInstanceId:       req.Appearance.FishingRodInstanceId,
+	}
+	rsp.Appearance = characterInfo.GetPbCharacterAppearance()
 }

@@ -17,6 +17,7 @@ func (g *Game) newRouter() {
 		cmd.PlayerPingReq: g.PlayerPing, // ping
 		// 玩家基础信息
 		cmd.PlayerMainDataReq: g.PlayerMainData, // 获取玩家信息
+		cmd.ChangeNickNameReq: g.ChangeNickName, // 修改玩家昵称和生日
 		// 场景
 		cmd.PlayerSceneRecordReq:  g.PlayerSceneRecord,  // 玩家场景同步器
 		cmd.SendActionReq:         g.SendAction,         // 场景自动化同步器
@@ -38,7 +39,7 @@ func (g *Game) newRouter() {
 		cmd.CharacterLevelBreakReq:         g.CharacterLevelBreak,         // 角色突破
 		cmd.OutfitPresetUpdateReq:          g.OutfitPresetUpdate,          // 保存预设装扮
 		cmd.CharacterEquipUpdateReq:        g.CharacterEquipUpdate,        // 角色更新装备
-		// cmd.UpdateCharacterAppearanceReq:   g.UpdateCharacterAppearance,   // 更新角色外观
+		cmd.UpdateCharacterAppearanceReq:   g.UpdateCharacterAppearance,   // 更新角色外观
 		// 信息记录
 		cmd.GetArchiveInfoReq: g.GetArchiveInfo, // 获取记录的信息
 		cmd.SetArchiveInfoReq: g.SetArchiveInfo, // 设置信息

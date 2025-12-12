@@ -213,6 +213,32 @@ func (g *Game) PlayerPing(s *model.Player, msg *alg.GameMsg) {
 	defer g.send(s, msg.PacketId, rsp)
 }
 
+func (g *Game) ChangeNickName(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.ChangeNickNameReq)
+	rsp := &proto.ChangeNickNameRsp{
+		Status:          proto.StatusCode_StatusCode_OK,
+		NickName:        "",
+		Items:           make([]*proto.ItemDetail, 0),
+		RenameAllowTime: 0,
+	}
+	defer func() {
+		g.send(s, msg.PacketId, rsp)
+		g.SceneActionCharacterUpdate(s, proto.SceneActionType_SceneActionType_UPDATE_NICKNAME)
+	}()
+	err := db.UpGameBasic(s.UserId, func(basic *db.OFGameBasic) bool {
+		basic.NickName = req.NickName
+		basic.Birthday = req.Birthday
+		return true
+	})
+	if err != nil {
+		rsp.Status = proto.StatusCode_StatusCode_PLAYER_NOT_FOUND
+		log.Game.Errorf("UserId:%v 修改基础信息失败:%s", s.UserId, err.Error())
+		return
+	}
+	s.NickName = req.NickName
+	rsp.NickName = s.NickName
+}
+
 func (g *Game) GamePlayReward(s *model.Player, msg *alg.GameMsg) {
 	// req := msg.Body.(*proto.GamePlayRewardReq)
 	rsp := &proto.GamePlayRewardRsp{

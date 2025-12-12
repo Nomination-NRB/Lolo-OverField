@@ -117,6 +117,8 @@ func (g *Game) kickPlayer(userId uint32) {
 	}
 	// 退出世界
 	g.getWordInfo().killScenePlayer(player)
+	// 退出聊天频道
+	g.getChatInfo().killChannelUser(player)
 	log.Game.Debugf("玩家:%v 离线", userId)
 }
 

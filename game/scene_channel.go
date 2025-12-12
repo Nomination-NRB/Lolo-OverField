@@ -262,10 +262,21 @@ func (c *ChannelInfo) serverSceneSync(ctx *ServerSceneSyncCtx) {
 		serverData.Player = c.GetPbScenePlayer(ctx.ScenePlayer)
 	case proto.SceneActionType_SceneActionType_LEAVE: // 退出场景
 	case proto.SceneActionType_SceneActionType_UPDATE_EQUIP, /*更新装备*/
-		proto.SceneActionType_SceneActionType_UPDATE_FASHION, /*更新服装*/
-		proto.SceneActionType_SceneActionType_UPDATE_TEAM:    /*更新队伍*/
+		proto.SceneActionType_SceneActionType_UPDATE_FASHION,    /*更新服装*/
+		proto.SceneActionType_SceneActionType_UPDATE_TEAM,       /*更新队伍*/
+		proto.SceneActionType_SceneActionType_UPDATE_APPEARANCE: /*更新外观*/
 		serverData.Player = &proto.ScenePlayer{
 			Team: c.GetPbSceneTeam(ctx.ScenePlayer),
+		}
+	case proto.SceneActionType_SceneActionType_UPDATE_NICKNAME: // 更新昵称
+		basic, err := db.GetGameBasic(ctx.ScenePlayer.UserId)
+		if err != nil {
+			log.Game.Errorf("UserId:%v获取玩家基础数据失败:%s", ctx.ScenePlayer.UserId, err.Error())
+			return
+		}
+		serverData.Player = &proto.ScenePlayer{
+			PlayerId:   ctx.ScenePlayer.UserId,
+			PlayerName: basic.NickName,
 		}
 	case proto.SceneActionType_SceneActionType_TOD_UPDATE: /* 时间更新*/
 		serverData.TodTime = c.getTodTime()
@@ -499,12 +510,19 @@ func (g *Game) SceneActionCharacterUpdate(s *model.Player, t proto.SceneActionTy
 	if scenePlayer == nil || scenePlayer.channelInfo == nil {
 		return
 	}
-	curTeam := s.GetTeamModel().GetTeamInfo()
-	for _, id := range characterId {
-		if id == curTeam.Char1 || id == curTeam.Char2 || id == curTeam.Char3 {
-			scenePlayer.channelInfo.serverSceneSyncChan <- &ServerSceneSyncCtx{
-				ScenePlayer: scenePlayer,
-				ActionType:  t,
+	if len(characterId) == 0 {
+		scenePlayer.channelInfo.serverSceneSyncChan <- &ServerSceneSyncCtx{
+			ScenePlayer: scenePlayer,
+			ActionType:  t,
+		}
+	} else {
+		curTeam := s.GetTeamModel().GetTeamInfo()
+		for _, id := range characterId {
+			if id == curTeam.Char1 || id == curTeam.Char2 || id == curTeam.Char3 {
+				scenePlayer.channelInfo.serverSceneSyncChan <- &ServerSceneSyncCtx{
+					ScenePlayer: scenePlayer,
+					ActionType:  t,
+				}
 			}
 		}
 	}
