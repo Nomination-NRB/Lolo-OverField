@@ -44,3 +44,49 @@
   - [x] 世界
   - [ ] 系统
   - [x] 私聊
+
+## Fiddler脚本
+
+```javascript
+import System;
+import System.Windows.Forms;
+import Fiddler;
+import System.Text.RegularExpressions;
+
+class Handlers {
+    static function OnBeforeRequest(oS: Session) {
+        var targetDomains = [
+            "http://dsp-prod-of.inutan.com:18881/dispatch/region_info"
+            ];
+        var host = oS.host.ToLower();
+        var path = oS.PathAndQuery.ToLower();
+        var url = oS.fullUrl.ToLower();
+
+        var proxyHost = "127.0.0.1:18881";
+        var isTls = false;
+        
+        var domainMatch = false;
+        for (var i = 0; i < targetDomains.length; i++) {
+            if (
+                host.EndsWith("." + targetDomains[i]) || 
+                host == targetDomains[i] || 
+                url == targetDomains[i]
+            ) {
+                domainMatch = true;
+                break;
+            }
+        }
+        
+        if (domainMatch) {
+            oS.host = proxyHost;
+            if (isTls) {
+                oS.oRequest.headers.UriScheme = "https";
+                FiddlerObject.log("Redirecting: " + oS.fullUrl + " → https://" + proxyHost);
+            }else{
+                oS.oRequest.headers.UriScheme = "http";
+                FiddlerObject.log("Redirecting: " + oS.fullUrl + " → http://" + proxyHost);
+            }
+        }
+    }
+};
+```
