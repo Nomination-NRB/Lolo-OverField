@@ -50,97 +50,95 @@ func (i *ItemModel) NextInstanceIndex() uint32 {
 	return i.InstanceIndex
 }
 
-func (i *ItemModel) AllItemModel() {
-	for tag, confList := range gdconf.GetItemByNewBagItemTagAll() {
-		switch tag {
-		case proto.EBagItemTag_EBagItemTag_Gift,
-			proto.EBagItemTag_EBagItemTag_Fragment,
-			proto.EBagItemTag_EBagItemTag_Collection,
-			proto.EBagItemTag_EBagItemTag_Card,
-			proto.EBagItemTag_EBagItemTag_Material,
-			proto.EBagItemTag_EBagItemTag_Food,
-			proto.EBagItemTag_EBagItemTag_SpellCard,
-			proto.EBagItemTag_EBagItemTag_Item,
-			proto.EBagItemTag_EBagItemTag_Fish,
-			proto.EBagItemTag_EBagItemTag_Recipe,
-			proto.EBagItemTag_EBagItemTag_Baitbox,
-			proto.EBagItemTag_EBagItemTag_Quest,
-			proto.EBagItemTag_EBagItemTag_StrengthStone,
-			proto.EBagItemTag_EBagItemTag_ExpBook,
-			proto.EBagItemTag_EBagItemTag_Head,
-			proto.EBagItemTag_EBagItemTag_UnlockAbilityItem,
-			proto.EBagItemTag_EBagItemTag_CharacterBadge,
-			proto.EBagItemTag_EBagItemTag_DyeStuff,
-			proto.EBagItemTag_EBagItemTag_PlayerExp,
-			proto.EBagItemTag_EBagItemTag_WorldLevel,
-			proto.EBagItemTag_EBagItemTag_Agentia,
-			proto.EBagItemTag_EBagItemTag_MoonStone,
-			proto.EBagItemTag_EBagItemTag_Umbrella,
-			proto.EBagItemTag_EBagItemTag_Vitality,
-			proto.EBagItemTag_EBagItemTag_Badge,
-			proto.EBagItemTag_EBagItemTag_Furniture,
-			proto.EBagItemTag_EBagItemTag_Energy,
-			proto.EBagItemTag_EBagItemTag_ShowWeapon,
-			proto.EBagItemTag_EBagItemTag_ShowArmor,
-			proto.EBagItemTag_EBagItemTag_TeleportKey,
-			proto.EBagItemTag_EBagItemTag_WallPaper,
-			proto.EBagItemTag_EBagItemTag_Expression,
-			proto.EBagItemTag_EBagItemTag_MoonCard,
-			proto.EBagItemTag_EBagItemTag_PhoneCase,
-			proto.EBagItemTag_EBagItemTag_Pendant,
-			proto.EBagItemTag_EBagItemTag_AvatarFrame,
-			proto.EBagItemTag_EBagItemTag_IntimacyGift,
-			proto.EBagItemTag_EBagItemTag_MusicNote,
-			proto.EBagItemTag_EBagItemTag_MonthlyCard,
-			proto.EBagItemTag_EBagItemTag_BattlePassCard,
-			proto.EBagItemTag_EBagItemTag_MonthlyGiftCard,
-			proto.EBagItemTag_EBagItemTag_BattlePassGiftCard,
-			proto.EBagItemTag_EBagItemTag_SeasonalMiniGamesItem:
-			for _, conf := range confList {
-				i.AddItemBase(uint32(conf.ID), 9999)
-			}
-		case proto.EBagItemTag_EBagItemTag_Currency:
-			for _, conf := range confList {
-				i.AddItemBase(uint32(conf.ID), 99999999)
-			}
-		case proto.EBagItemTag_EBagItemTag_UnlockItem:
-			for _, conf := range confList {
-				if gdconf.GetPlayerUnlockConfigure(conf.ID) == nil {
-					continue
-				}
-				i.AddItemBase(uint32(conf.ID), 1)
-			}
-		case proto.EBagItemTag_EBagItemTag_AbilityItem:
-			// for _, conf := range confList {
-			// 	if gdconf.GetPlayerAbilityConfigure(conf.ID) == nil {
-			// 		continue
-			// 	}
-			// 	i.AddItemBase(uint32(conf.ID), 1)
-			// }
-		case proto.EBagItemTag_EBagItemTag_Weapon:
-			for _, conf := range confList {
-				i.AddItemWeapon(uint32(conf.ID))
-			}
-		case proto.EBagItemTag_EBagItemTag_Fashion:
-			for _, conf := range confList {
-				i.AddItemFashion(uint32(conf.ID))
-			}
-		case proto.EBagItemTag_EBagItemTag_Armor:
-			for _, conf := range confList {
-				i.AddItemArmor(uint32(conf.ID))
-			}
-		case proto.EBagItemTag_EBagItemTag_Poster:
-			for _, conf := range confList {
-				i.AddItemPoster(uint32(conf.ID))
-			}
-		case proto.EBagItemTag_EBagItemTag_Inscription:
-			for _, conf := range confList {
-				i.AddItemInscription(uint32(conf.ID))
-			}
-		default:
-			log.Game.Warnf("未知的物品类型TypeID:%v Type:%s", tag, tag.String())
-		}
+func (s *Player) AllItemModel() {
+	for _, conf := range gdconf.GetAllItemConfigure() {
+		s.AddAllTypeItem(uint32(conf.ID), 99999999)
 	}
+}
+
+func (s *Player) AddAllTypeItem(id uint32, num int64) EBagItemTag {
+	i := s.GetItemModel()
+	conf := gdconf.GetItemConfigure(id)
+	if conf == nil {
+		log.Game.Warnf("未知的物品类型ItemID:%v", id)
+		return nil
+	}
+	tag := proto.EBagItemTag(conf.NewBagItemTag)
+	switch tag {
+	case proto.EBagItemTag_EBagItemTag_Gift,
+		proto.EBagItemTag_EBagItemTag_Fragment,
+		proto.EBagItemTag_EBagItemTag_Collection,
+		proto.EBagItemTag_EBagItemTag_Material,
+		proto.EBagItemTag_EBagItemTag_Food,
+		proto.EBagItemTag_EBagItemTag_SpellCard,
+		proto.EBagItemTag_EBagItemTag_Item,
+		proto.EBagItemTag_EBagItemTag_Fish,
+		proto.EBagItemTag_EBagItemTag_Recipe,
+		proto.EBagItemTag_EBagItemTag_Baitbox,
+		proto.EBagItemTag_EBagItemTag_Quest,
+		proto.EBagItemTag_EBagItemTag_StrengthStone,
+		proto.EBagItemTag_EBagItemTag_ExpBook,
+		proto.EBagItemTag_EBagItemTag_Head,
+		proto.EBagItemTag_EBagItemTag_UnlockAbilityItem,
+		proto.EBagItemTag_EBagItemTag_CharacterBadge,
+		proto.EBagItemTag_EBagItemTag_DyeStuff,
+		proto.EBagItemTag_EBagItemTag_PlayerExp,
+		proto.EBagItemTag_EBagItemTag_WorldLevel,
+		proto.EBagItemTag_EBagItemTag_Agentia,
+		proto.EBagItemTag_EBagItemTag_MoonStone,
+		proto.EBagItemTag_EBagItemTag_Umbrella,
+		proto.EBagItemTag_EBagItemTag_Vitality,
+		proto.EBagItemTag_EBagItemTag_Badge,
+		proto.EBagItemTag_EBagItemTag_Furniture,
+		proto.EBagItemTag_EBagItemTag_Energy,
+		proto.EBagItemTag_EBagItemTag_ShowWeapon,
+		proto.EBagItemTag_EBagItemTag_ShowArmor,
+		proto.EBagItemTag_EBagItemTag_TeleportKey,
+		proto.EBagItemTag_EBagItemTag_WallPaper,
+		proto.EBagItemTag_EBagItemTag_Expression,
+		proto.EBagItemTag_EBagItemTag_MoonCard,
+		proto.EBagItemTag_EBagItemTag_PhoneCase,
+		proto.EBagItemTag_EBagItemTag_Pendant,
+		proto.EBagItemTag_EBagItemTag_AvatarFrame,
+		proto.EBagItemTag_EBagItemTag_IntimacyGift,
+		proto.EBagItemTag_EBagItemTag_MusicNote,
+		proto.EBagItemTag_EBagItemTag_MonthlyCard,
+		proto.EBagItemTag_EBagItemTag_BattlePassCard,
+		proto.EBagItemTag_EBagItemTag_MonthlyGiftCard,
+		proto.EBagItemTag_EBagItemTag_BattlePassGiftCard,
+		proto.EBagItemTag_EBagItemTag_SeasonalMiniGamesItem:
+		return i.AddItemBase(id, num)
+	case proto.EBagItemTag_EBagItemTag_Card: // 角色
+		return s.AddCharacter(id)
+	case proto.EBagItemTag_EBagItemTag_Currency:
+		return i.AddItemBase(id, num)
+	case proto.EBagItemTag_EBagItemTag_UnlockItem:
+		if gdconf.GetPlayerUnlockConfigure(conf.ID) == nil {
+			return nil
+		}
+		return i.AddItemBase(id, num)
+	case proto.EBagItemTag_EBagItemTag_AbilityItem:
+	// for _, conf := range confList {
+	// 	if gdconf.GetPlayerAbilityConfigure(conf.ID) == nil {
+	// 		continue
+	// 	}
+	// 	i.AddItemBase(uint32(conf.ID), 1)
+	// }
+	case proto.EBagItemTag_EBagItemTag_Weapon:
+		return i.AddItemWeapon(id)
+	case proto.EBagItemTag_EBagItemTag_Fashion:
+		return i.AddItemFashion(id)
+	case proto.EBagItemTag_EBagItemTag_Armor:
+		return i.AddItemArmor(id)
+	case proto.EBagItemTag_EBagItemTag_Poster:
+		return i.AddItemPoster(id)
+	case proto.EBagItemTag_EBagItemTag_Inscription:
+		return i.AddItemInscription(id)
+	default:
+		log.Game.Warnf("未知的物品类型Type:%s", tag.String())
+		return nil
+	}
+	return nil
 }
 
 type EBagItemTag interface {
@@ -172,12 +170,12 @@ func (i *ItemModel) GetItemBaseInfo(itemId uint32) *ItemBaseInfo {
 	return info
 }
 
-func (i *ItemModel) AddItemBase(itemId uint32, num int64) {
+func (i *ItemModel) AddItemBase(itemId uint32, num int64) *ItemBaseInfo {
 	conf := gdconf.GetItemConfigure(itemId)
 	list := i.GetItemBaseMap()
 	if conf == nil || list == nil {
 		log.Game.Warnf("添加基础物品失败,数据异常或不存在ItemID:%v", itemId)
-		return
+		return nil
 	}
 	info := list[itemId]
 	if info == nil {
@@ -189,6 +187,7 @@ func (i *ItemModel) AddItemBase(itemId uint32, num int64) {
 		list[itemId] = info
 	}
 	info.Num += num
+	return info
 }
 
 func (i *ItemBaseInfo) ItemDetail() *proto.ItemDetail {
@@ -280,6 +279,7 @@ func (i *ItemModel) AddItemWeapon(weaponId uint32) *ItemWeaponInfo {
 		CriticalRatio:    1, // 临界比率
 		RandomProperty:   make([]*RandomProperty, 0),
 		WearerId:         0,
+		WearerIndex:      0,
 		Level:            1,
 		StrengthLevel:    0, // 强度等级
 		StrengthExp:      0, // 强度经验
@@ -756,6 +756,9 @@ func (t *ItemTransaction) Commit() (tx *ItemTransaction) {
 			t.i.transactionLock.Unlock()
 		}
 	}()
+	if t.Error != nil {
+		return
+	}
 	t.PackNotice = &proto.PackNotice{
 		Status: proto.StatusCode_StatusCode_OK,
 		Items:  make([]*proto.ItemDetail, 0),

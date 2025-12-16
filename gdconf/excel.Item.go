@@ -42,3 +42,7 @@ func GetItemByNewBagItemTagAll() map[proto.EBagItemTag][]*excel.ItemConfigure {
 func GetItemByNewBagItemTag(tag proto.EBagItemTag) []*excel.ItemConfigure {
 	return cc.Excel.Item.ItemByNewBagItemTag[tag]
 }
+
+func GetAllItemConfigure() []*excel.ItemConfigure {
+	return cc.Excel.Item.all.GetItem().GetDatas()
+}

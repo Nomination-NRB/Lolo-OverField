@@ -20,8 +20,8 @@ func DefaultCharacterModel() *CharacterModel {
 
 func (s *Player) AllCharacterModel() {
 	for _, conf := range gdconf.GetCharacterAllMap() {
-		ok := s.AddCharacter(conf.CharacterId)
-		if !ok {
+		characterInfo := s.AddCharacter(conf.CharacterId)
+		if characterInfo == nil {
 			log.Game.Errorf("添加角色:%v失败", conf.CharacterId)
 			continue
 		}
@@ -40,6 +40,7 @@ func (s *Player) GetCharacterModel() *CharacterModel {
 
 type CharacterInfo struct {
 	CharacterId               uint32                      `json:"characterId,omitempty"`               // 角色id
+	IsNew                     bool                        `json:"isNew,omitempty"`                     // 是否新角色
 	Level                     uint32                      `json:"level,omitempty"`                     // 角色等级
 	MaxLevel                  uint32                      `json:"maxLevel,omitempty"`                  // 最大等级
 	Exp                       uint32                      `json:"exp,omitempty"`                       // 角色经验
@@ -56,6 +57,7 @@ type CharacterInfo struct {
 func newCharacterInfo(characterId uint32) *CharacterInfo {
 	info := &CharacterInfo{
 		CharacterId:               characterId,
+		IsNew:                     true,
 		Level:                     1,
 		BreakLevel:                0,
 		Exp:                       0,
@@ -86,20 +88,20 @@ func (c *CharacterModel) GetCharacterInfo(characterId uint32) *CharacterInfo {
 	return list[characterId]
 }
 
-func (s *Player) AddCharacter(characterId uint32) bool {
+func (s *Player) AddCharacter(characterId uint32) *CharacterInfo {
 	list := s.GetCharacterModel().GetCharacterMap()
 	if list == nil {
-		return false
+		return nil
 	}
 	conf := gdconf.GetCharacterAll(characterId)
 	if conf == nil ||
 		!conf.CharacterInfo.IsShow {
 		log.Game.Warnf("尝试添加不存在的角色:%v", characterId)
-		return false
+		return nil
 	}
-	if list[characterId] != nil {
+	if characterInfo, ok := list[characterId]; ok {
 		log.Game.Debugf("重复添加角色:%v", characterId)
-		return true
+		return characterInfo
 	}
 	characterInfo := newCharacterInfo(characterId)
 	characterInfo.UpMaxLevel()
@@ -109,7 +111,7 @@ func (s *Player) AddCharacter(characterId uint32) bool {
 	itemWeapon := s.GetItemModel().AddItemWeapon(uint32(conf.CharacterInfo.DefaultWeaponID))
 	if itemWeapon == nil {
 		log.Game.Warnf("角色:%v,添加默认武器:%v失败", characterId, conf.CharacterInfo.DefaultWeaponID)
-		return false
+		return nil
 	}
 	itemWeapon.SetWearerId(characterId, preset.PresetIndex)
 	preset.WeaponInstanceId = itemWeapon.InstanceId
@@ -130,7 +132,7 @@ func (s *Player) AddCharacter(characterId uint32) bool {
 		}
 	}
 
-	return true
+	return characterInfo
 }
 
 func (c *CharacterModel) GetAllPbCharacter() []*proto.Character {
@@ -173,6 +175,26 @@ func (c *CharacterInfo) Character() *proto.Character {
 	}
 
 	return pbInfo
+}
+
+func (c *CharacterInfo) ItemDetail() *proto.ItemDetail {
+	defer func() {
+		c.IsNew = false
+	}()
+	return &proto.ItemDetail{
+		MainItem: &proto.ItemInfo{
+			ItemId:  c.CharacterId,
+			ItemTag: proto.EBagItemTag_EBagItemTag_Card,
+			IsNew:   c.IsNew,
+			Item: &proto.ItemInfo_Character{
+				Character: c.Character(),
+			},
+		},
+		TransformedItem: make([]*proto.ItemInfo, 0),
+		Extras:          make([]*proto.ItemInfo, 0),
+		PackType:        0,
+		ExtraQuality:    0,
+	}
 }
 
 type CharacterAppearance struct {

@@ -59,15 +59,14 @@ func (g *Game) PlayerLogin(conn ofnet.Conn, userId uint32, msg *alg.GameMsg) {
 		} else {
 			// newPlayer
 			for _, characterId := range gdconf.GetConstant().DefaultCharacter {
-				ok := s.AddCharacter(characterId)
-				if !ok {
+				characterInfo := s.AddCharacter(characterId)
+				if characterInfo == nil {
 					log.Game.Errorf("初始化默认角色:%v失败", characterId)
 					continue
 				}
 			}
 			if config.GetMode() == config.ModeDev {
-				s.AllCharacterModel()
-				s.GetItemModel().AllItemModel()
+				s.AllItemModel()
 			}
 		}
 		g.userMap[userId] = s
