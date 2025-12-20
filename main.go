@@ -73,8 +73,6 @@ func init() {
 	})
 }
 
-//     "mysqldsn": "root:gucooing.mysql@tcp(110.42.61.204:3306)/Lolo?charset=utf8mb4&parseTime=True&loc=Local"
-
 func main() {
 	if err := loloCmd.Execute(); err != nil {
 		os.Exit(1)
