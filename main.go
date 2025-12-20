@@ -3,9 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,6 +14,7 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
 
 	"gucooing/lolo/config"
 	"gucooing/lolo/db"
@@ -28,7 +27,61 @@ import (
 	"gucooing/lolo/sdk"
 )
 
+var (
+	loloCmd = &cobra.Command{
+		Use: pkg.AppName,
+		Short: fmt.Sprintf("%s ServerVersion:%s ClientVersion:%s (%s)",
+			pkg.AppName, pkg.ServerVersion, pkg.ClientVersion, pkg.Commit),
+		Example: fmt.Sprintf("%s --help", pkg.AppName),
+		Version: pkg.ServerVersion,
+		RunE:    runLolo,
+	}
+
+	configCmd = &cobra.Command{
+		Use:     "config",
+		Aliases: []string{"c"},
+		Short:   "配置文件管理",
+	}
+
+	genCmd = &cobra.Command{
+		Use:   "gen",
+		Short: "生成配置文件",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := config.LoadConfig(); err != nil {
+				config.SaveConfig(config.DefaultConfig)
+			} else {
+				config.SaveConfig(config.CONF)
+			}
+			return nil
+		},
+	}
+)
+
+func init() {
+	loloCmd.Flags().StringP("c", "c", "./config.json", "配置文件路径")
+	configCmd.AddCommand(genCmd)
+	loloCmd.AddCommand(configCmd)
+
+	loloCmd.AddCommand(&cobra.Command{
+		Use:     "version",
+		Aliases: []string{"v"},
+		Short:   "版本",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("%s ServerVersion:%s ClientVersion:%s (%s)\n",
+				pkg.AppName, pkg.ServerVersion, pkg.ClientVersion, pkg.Commit)
+		},
+	})
+}
+
+//     "mysqldsn": "root:gucooing.mysql@tcp(110.42.61.204:3306)/Lolo?charset=utf8mb4&parseTime=True&loc=Local"
+
 func main() {
+	if err := loloCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func runLolo(cmd *cobra.Command, args []string) error {
 	exit := func() {
 		fmt.Printf("\n执行结束请输入任何键退出程序....")
 		scanner := bufio.NewScanner(os.Stdin)
@@ -45,43 +98,25 @@ func main() {
 			exit()
 		}
 	}()
-	newLolo()
+	if path, err := cmd.Flags().GetString("c"); err == nil && path != "" {
+		config.CfgPath = path
+	}
+
+	return newLolo()
 }
 
-func newLolo() {
-	var filePath string
-	var genConfig bool
-	flag.StringVar(&filePath, "c", "./config.json", "配置文件路径")
-	flag.BoolVar(&genConfig, "g", false, "是否生成默认配置文件")
-	flag.Parse()
-
-	if genConfig {
-		fmt.Printf("生成默认配置文件\n")
-		p, _ := json.MarshalIndent(config.DefaultConfig, "", "  ")
-		cf, _ := os.Create(filePath)
-		_, err := cf.Write(p)
-		cf.Close()
-		if err != nil {
-			fmt.Printf("生成默认配置文件失败 %s \n请检查是否有权限\n", err.Error())
-			return
-		} else {
-			fmt.Printf("生成默认配置文件成功 \n请修改后重新启动")
-			return
-		}
-	}
-
-	if err := config.LoadConfig(filePath); err != nil {
-		panic(err)
+func newLolo() error {
+	if err := config.LoadConfig(); err != nil {
+		return fmt.Errorf("解析配置文件失败: %v", err)
 	}
 	log.NewApp()
-
 	log.App.Info("Lolo Start")
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	// 初始化数据库
 	log.App.Debug("开始初始化数据库")
-	if err := db.NewDB(); err != nil {
-		panic(fmt.Sprintf("初始化数据库失败:%s", err.Error()))
+	if err := db.NewDB(config.GetDB().GetOption()); err != nil {
+		return fmt.Errorf("初始化数据库失败:%s", err.Error())
 	}
 
 	log.App.Debug("初始化数据库成功")

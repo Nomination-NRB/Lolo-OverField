@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -40,7 +41,10 @@ var DefaultConfig = &Config{
 	DB:             defaultDB,
 }
 
-var CONF *Config = nil
+var (
+	CfgPath         = "./config.json"
+	CONF    *Config = nil
+)
 
 func SetDefaultConfig() {
 	log.Printf("config不存在,使用默认配置\n")
@@ -69,8 +73,8 @@ func GetGucooingApiKey() string {
 
 var FileNotExist = errors.New("config file not found")
 
-func LoadConfig(filePath string) error {
-	f, err := os.Open(filePath)
+func LoadConfig() error {
+	f, err := os.Open(CfgPath)
 	if err != nil {
 		log.Printf("配置文件读取失败将使用默认配置\n")
 		CONF = DefaultConfig
@@ -78,14 +82,29 @@ func LoadConfig(filePath string) error {
 		defer func() {
 			_ = f.Close()
 		}()
-		CONF = new(Config)
+		c := new(Config)
 		d := json.NewDecoder(f)
-		if err := d.Decode(CONF); err != nil {
+		if err := d.Decode(c); err != nil {
 			return err
 		}
+		CONF = c
 	}
 	overrideWithEnv(reflect.ValueOf(CONF).Elem(), "Config")
 	return nil
+}
+
+func SaveConfig(cfg *Config) {
+	bytes, _ := json.MarshalIndent(cfg, "", "  ")
+	file, _ := os.Create(CfgPath)
+	_, err := file.Write(bytes)
+	file.Close()
+	if err != nil {
+		fmt.Printf("更新配置文件失败 %s \n请检查是否有权限\n", err.Error())
+		return
+	} else {
+		fmt.Printf("更新配置文件成功 \n请修改后重新启动")
+		return
+	}
 }
 
 func overrideWithEnv(val reflect.Value, nestKey string) {
