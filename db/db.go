@@ -83,12 +83,8 @@ func NewDB(option *Option) error {
 		&OFChatPrivate{},
 		&OFChatPrivateMsg{},
 		&OFGachaRecord{},
+		&OFHome{},
 	)
-
-	d.db.FirstOrCreate(&OFUser{
-		UserId: 999999,
-		SdkUid: 0,
-	})
 
 	db = d.db
 

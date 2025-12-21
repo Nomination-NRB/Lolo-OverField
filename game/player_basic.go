@@ -26,10 +26,7 @@ func (g *Game) PlayerLogin(conn ofnet.Conn, userId uint32, msg *alg.GameMsg) {
 	// 重复登录检查
 	s := g.GetUser(userId)
 	if s != nil {
-		s.Conn = conn
 		g.kickPlayer(userId) // 下线老玩家
-		s.Online = true
-		s.NetFreeze = false
 	} else {
 		// 拉取数据
 		dbUser, err := db.GetOFGameByUserId(userId)
@@ -45,14 +42,11 @@ func (g *Game) PlayerLogin(conn ofnet.Conn, userId uint32, msg *alg.GameMsg) {
 			return
 		}
 		s = &model.Player{
-			UserId:    userId,
-			NickName:  basic.NickName,
-			Conn:      conn,
-			Online:    true,
-			NetFreeze: false,
-			Created:   basic.CreatedAt,
+			UserId:   userId,
+			NickName: basic.NickName,
+			Created:  basic.CreatedAt,
 		}
-		if dbUser.BinData != nil {
+		if len(dbUser.BinData) != 0 {
 			if err := sonic.Unmarshal(dbUser.BinData, s); err != nil {
 				rsp.Status = proto.StatusCode_StatusCode_PlayerNotFound
 				log.Game.Warnf("玩家:%v数据序列化失败:%s", userId, err.Error())
@@ -74,6 +68,7 @@ func (g *Game) PlayerLogin(conn ofnet.Conn, userId uint32, msg *alg.GameMsg) {
 		}
 		g.userMap[userId] = s
 	}
+	s.Init(conn)
 
 	basic, err := db.GetGameBasic(userId)
 	if err != nil {
@@ -184,7 +179,7 @@ func (g *Game) PlayerMainData(s *model.Player, msg *alg.GameMsg) {
 		rsp.QuestionnaireInfo = s.GetPlayerQuestionnaireInfo()
 		rsp.UnlockFunctions = s.GetUnlockFunctions()
 		rsp.PlacedCharacters = make([]uint32, 0)
-		rsp.FurnitureItemInfo = make([]*proto.BaseItem, 0) // 已摆放的家具
+		rsp.FurnitureItemInfo = s.GetItemModel().FurnitureItemInfo() // 已摆放的家具
 		rsp.DailyTask = &proto.PlayerDailyTask{
 			Tasks:             make(map[uint32]uint32),
 			TodayConverted:    0,

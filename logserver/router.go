@@ -16,7 +16,7 @@ func (g *LogServer) routerInit() {
 }
 
 func (g *LogServer) routerHandler(conn ofnet.Conn, msg *alg.GameMsg) {
-	handler, ok := g.handlerFuncRouteMap[msg.PacketId]
+	handler, ok := g.handlerFuncRouteMap[msg.MsgId]
 	if !ok {
 		log.ClientLog.Errorf("no route for msg, cmdId: %v name:%s", msg.MsgId, cmd.Get().GetCmdNameByCmdId(msg.MsgId))
 		return

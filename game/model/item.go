@@ -21,7 +21,8 @@ type ItemModel struct {
 	ItemArmorMap       map[uint32]*ItemArmorInfo       `json:"itemArmorMap,omitempty"`   // 盔甲
 	ItemPosterMap      map[uint32]*ItemPosterInfo      `json:"itemPosterMap,omitempty"`  // 海报
 	ItemInscriptionMap map[uint32]*ItemInscriptionInfo `json:"itemInscriptionMap,omitempty"`
-	ItemHeadMap        map[uint32]*ItemHeadInfo        `json:"itemHeadMap,omitempty"` // 头像
+	ItemHeadMap        map[uint32]*ItemHeadInfo        `json:"itemHeadMap,omitempty"`      // 头像
+	FurnitureItemMap   map[uint32]*FurnitureItemInfo   `json:"furnitureItemMap,omitempty"` // 已摆放家具信息
 }
 
 func DefaultItemModel() *ItemModel {
@@ -793,6 +794,69 @@ func (i *ItemHeadInfo) ItemDetail() *proto.ItemDetail {
 		PackType: proto.PackType_PackType_Inventory,
 	}
 	return info
+}
+
+type FurnitureItemInfo struct {
+	ItemId uint32 `json:"itemId,omitempty"`
+	Num    int64  `json:"num,omitempty"`
+}
+
+func (i *ItemModel) GetFurnitureItemMap() map[uint32]*FurnitureItemInfo {
+	if i.FurnitureItemMap == nil {
+		i.FurnitureItemMap = make(map[uint32]*FurnitureItemInfo)
+	}
+	return i.FurnitureItemMap
+}
+
+func (i *ItemModel) GetFurnitureItemInfo(itemId uint32) *FurnitureItemInfo {
+	furnitureMap := i.GetFurnitureItemMap()
+	info, ok := furnitureMap[itemId]
+	if !ok {
+		info = &FurnitureItemInfo{
+			ItemId: itemId,
+			Num:    0,
+		}
+		furnitureMap[itemId] = info
+	}
+	return info
+}
+
+func (i *ItemModel) FurnitureItemInfo() []*proto.BaseItem {
+	itemMap := i.GetFurnitureItemMap()
+	list := make([]*proto.BaseItem, len(itemMap))
+	for _, v := range itemMap {
+		alg.AddList(&list, v.BaseItem())
+	}
+	return list
+}
+
+// 摆放家具
+func (i *ItemModel) AddFurnitureItem(item uint32) bool {
+	furnitureItem := i.GetFurnitureItemInfo(item)
+	itemInfo := i.GetItemBaseInfo(item)
+	if itemInfo == nil || furnitureItem == nil {
+		return false
+	}
+	if itemInfo.Num < furnitureItem.Num+1 {
+		return false
+	}
+	furnitureItem.Num++
+	return true
+}
+
+// 回收家具
+func (i *ItemModel) DelFurnitureItem(item uint32) {
+	furnitureItem := i.GetFurnitureItemInfo(item)
+	if furnitureItem.Num >= 1 {
+		furnitureItem.Num--
+	}
+}
+
+func (f *FurnitureItemInfo) BaseItem() *proto.BaseItem {
+	return &proto.BaseItem{
+		ItemId: f.ItemId,
+		Num:    f.Num,
+	}
 }
 
 // 背包事务

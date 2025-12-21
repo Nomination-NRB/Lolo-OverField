@@ -14,10 +14,15 @@ import (
 
 var (
 	App       *slog.SugaredLogger
-	Gate      *slog.SugaredLogger
+	Gate      *SugaredLogger
 	Game      *slog.SugaredLogger
-	ClientLog *slog.SugaredLogger
+	ClientLog *SugaredLogger
 )
+
+type SugaredLogger struct {
+	*slog.SugaredLogger
+	With *slog.Logger
+}
 
 func Close() {
 	if App != nil {
@@ -25,12 +30,14 @@ func Close() {
 	}
 	if Gate != nil {
 		Gate.Close()
+		Gate.With.Close()
 	}
 	if Game != nil {
 		Game.Close()
 	}
 	if ClientLog != nil {
 		ClientLog.Close()
+		ClientLog.With.Close()
 	}
 }
 
@@ -47,16 +54,37 @@ func NewApp() {
 
 func NewGate() {
 	conf := config.GetGateWay().GetLog()
-	Gate = slog.NewStdLogger(func(sl *slog.SugaredLogger) {
-		sl.ChannelName = conf.AppName
-		sl.Level = conf.Level
-	})
-	addHandler(Gate, conf)
+	su := &SugaredLogger{
+		SugaredLogger: slog.NewStdLogger(func(sl *slog.SugaredLogger) {
+			f := sl.Formatter.(*slog.TextFormatter)
+			f.EnableColor = true
+			sl.ChannelName = conf.AppName
+			sl.Level = conf.Level
+		}),
+		With: slog.NewWithConfig(func(logger *slog.Logger) {
+			logger.AddHandler(handler.NewBuilder().
+				WithLogfile(fmt.Sprintf("./log/Packet.log")).
+				WithLogLevels(slog.AllLevels).
+				WithBuffSize(1024 * 10).
+				WithRotateTime(func() rotatefile.RotateTime {
+					if config.GetMode() == config.ModeDev {
+						return rotatefile.Every15Min
+					}
+					return rotatefile.EveryDay
+				}()).
+				WithCompress(true).
+				Build())
+		}),
+	}
+	Gate = su
+	addHandler(su.SugaredLogger, conf)
 }
 
 func NewGame() {
 	conf := config.GetGame().GetLog()
 	Game = slog.NewStdLogger(func(sl *slog.SugaredLogger) {
+		f := sl.Formatter.(*slog.TextFormatter)
+		f.EnableColor = true
 		sl.ChannelName = conf.AppName
 		sl.Level = conf.Level
 	})
@@ -65,11 +93,31 @@ func NewGame() {
 
 func NewClientLog() {
 	conf := config.GetLogServer().GetLog()
-	ClientLog = slog.NewStdLogger(func(sl *slog.SugaredLogger) {
-		sl.ChannelName = conf.AppName
-		sl.Level = conf.Level
-	})
-	addHandler(ClientLog, conf)
+	su := &SugaredLogger{
+		SugaredLogger: slog.NewStdLogger(func(sl *slog.SugaredLogger) {
+			f := sl.Formatter.(*slog.TextFormatter)
+			f.EnableColor = true
+			sl.ChannelName = conf.AppName
+			sl.Level = conf.Level
+		}),
+		With: slog.NewWithConfig(func(logger *slog.Logger) {
+			logger.AddHandler(handler.NewBuilder().
+				WithLogfile(fmt.Sprintf("./log/LogPacket.log")).
+				WithLogLevels(slog.AllLevels).
+				WithBuffSize(1024 * 10).
+				WithRotateTime(func() rotatefile.RotateTime {
+					if config.GetMode() == config.ModeDev {
+						return rotatefile.Every15Min
+					}
+					return rotatefile.EveryDay
+				}()).
+				WithCompress(true).
+				Build())
+		}),
+	}
+
+	ClientLog = su
+	addHandler(su.SugaredLogger, conf)
 }
 
 func addHandler(l *slog.SugaredLogger, conf *config.Log) {

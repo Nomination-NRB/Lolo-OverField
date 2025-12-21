@@ -7,12 +7,25 @@ import (
 )
 
 type OFUser struct {
-	UserId    uint32 `gorm:"primarykey;autoIncrement"`
+	UserId    uint32 `gorm:"primarykey;autoIncrement:1000000"`
 	SdkUid    uint32 `gorm:"unique"`
 	Token     string
 	DeviceId  string // 设备码
 	ChannelId string
 	Game      *OFGame `gorm:"foreignKey:UserId"`
+}
+
+func (u *OFUser) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.UserId == 0 {
+		var lastUser OFUser
+		tx.Order("user_id desc").First(&lastUser)
+		if lastUser.UserId < 1000000 {
+			u.UserId = 1000000
+		} else {
+			u.UserId = lastUser.UserId + 1
+		}
+	}
+	return nil
 }
 
 // GetOFUserByUserId 使用UserId拉取数据

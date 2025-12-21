@@ -32,13 +32,14 @@ type ChannelInfo struct {
 	chatChannel      *ChatChannel                          // 当前场景的聊天房间
 	sceneGardenData  *model.SceneGardenData                // 花园信息
 	// chan
-	freezeChan           chan struct{}             // 冻结/解冻通道
-	addScenePlayerChan   chan *ScenePlayer         // 玩家进入通道
-	delScenePlayerChan   chan *ScenePlayer         // 玩家退出通道
-	addSceneSyncDataChan chan *proto.SceneSyncData // 同步器通道
-	serverSceneSyncChan  chan *ServerSceneSyncCtx  // 服务端场景同步通道
-	actionSyncChan       chan *ActionSyncCtx       // action同步通道
-	interActionSyncChan  chan *InterActionCtx      // 玩家交互同步通道
+	freezeChan           chan struct{}                 // 冻结/解冻通道
+	addScenePlayerChan   chan *ScenePlayer             // 玩家进入通道
+	delScenePlayerChan   chan *ScenePlayer             // 玩家退出通道
+	addSceneSyncDataChan chan *proto.SceneSyncData     // 同步器通道
+	serverSceneSyncChan  chan *ServerSceneSyncCtx      // 服务端场景同步通道
+	actionSyncChan       chan *ActionSyncCtx           // action同步通道
+	interActionSyncChan  chan *InterActionCtx          // 玩家交互同步通道
+	gardenFurnitureChan  chan *SceneGardenFurnitureCtx // 家具通道
 }
 
 func (s *SceneInfo) newChannelInfo(channelId uint32, channelType int) *ChannelInfo {
@@ -61,6 +62,7 @@ func (s *SceneInfo) newChannelInfo(channelId uint32, channelType int) *ChannelIn
 		serverSceneSyncChan:  make(chan *ServerSceneSyncCtx, 100),
 		actionSyncChan:       make(chan *ActionSyncCtx, 100),
 		interActionSyncChan:  make(chan *InterActionCtx, 100),
+		gardenFurnitureChan:  make(chan *SceneGardenFurnitureCtx, 100),
 	}
 
 	info.chatChannel.doneChan = info.doneChan
@@ -125,6 +127,8 @@ func (c *ChannelInfo) channelMainLoop() {
 			c.SendActionNotice(ctx)
 		case ctx := <-c.interActionSyncChan: // 交互同步
 			c.SceneInterActionPlayStatusNotice(ctx)
+		case ctx := <-c.gardenFurnitureChan: // 家具通道
+			c.SceneGardenFurnitureUpdate(ctx)
 		case <-c.doneChan:
 			return
 		case <-c.freezeChan: // 房间冻结
@@ -288,6 +292,42 @@ func (c *ChannelInfo) serverSceneSync(ctx *ServerSceneSyncCtx) {
 		}
 	case proto.SceneActionType_SceneActionType_TodUpdate: /* 时间更新*/
 		serverData.TodTime = c.getTodTime()
+	}
+}
+
+type SceneGardenFurnitureCtx struct {
+	Remove        bool                        // 删除家具
+	ScenePlayer   *ScenePlayer                // 操作玩家
+	FurnitureInfo *proto.FurnitureDetailsInfo // 添加的家具信息
+	FurnitureId   int64                       // 删除的家具信息
+}
+
+// 花园家具更新
+func (c *ChannelInfo) SceneGardenFurnitureUpdate(ctx *SceneGardenFurnitureCtx) {
+	if ctx.Remove { // 移除
+		furnitureInfo := c.sceneGardenData.RemoveFurniture(
+			ctx.ScenePlayer.UserId,
+			c.ChannelId, ctx.FurnitureId)
+		if furnitureInfo != nil {
+			notice := &proto.SceneGardenFurnitureRemoveNotice{
+				Status:      proto.StatusCode_StatusCode_Ok,
+				FurnitureId: furnitureInfo.FurnitureId,
+				ItemId:      furnitureInfo.FurnitureItemId,
+				UpdateItems: make([]*proto.ItemDetail, 0),
+			}
+			c.sendAllPlayer(0, notice)
+		}
+	} else { // 添加
+		c.sceneGardenData.AddFurniture(
+			ctx.ScenePlayer.UserId,
+			c.ChannelId,
+			ctx.FurnitureInfo,
+		)
+		notice := &proto.SceneGardenFurnitureUpdateNotice{
+			Status:        proto.StatusCode_StatusCode_Ok,
+			FurnitureInfo: ctx.FurnitureInfo,
+		}
+		c.sendAllPlayer(0, notice)
 	}
 }
 

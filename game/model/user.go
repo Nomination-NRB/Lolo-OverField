@@ -29,6 +29,13 @@ type Player struct {
 	Gacha         *GachaModel     `json:"gacha,omitempty"`         // 卡池
 }
 
+// 将玩家状态重置成在线
+func (s *Player) Init(conn ofnet.Conn) {
+	s.Conn = conn
+	s.Online = true
+	s.NetFreeze = false
+}
+
 func (s *Player) GetSeqId() uint32 {
 	if s.Conn == nil {
 		return 0

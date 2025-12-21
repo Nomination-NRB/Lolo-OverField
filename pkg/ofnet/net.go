@@ -2,7 +2,6 @@ package ofnet
 
 import (
 	"errors"
-	"github.com/gookit/slog"
 	"net"
 	"sync/atomic"
 
@@ -10,7 +9,9 @@ import (
 	pb "google.golang.org/protobuf/proto"
 
 	"gucooing/lolo/pkg/alg"
+	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/cmd"
+	"gucooing/lolo/protocol/proto"
 )
 
 var CLIENT_CONN_NUM int64 = 0 // 当前客户端连接数
@@ -23,7 +24,7 @@ type Net interface {
 	SetLogMsg(logMsg bool)
 }
 
-func NewNet(network, addr string, log *slog.SugaredLogger) (Net, error) {
+func NewNet(network, addr string, log *log.SugaredLogger) (Net, error) {
 	log.Infof("协议:%s,启动在%s 上", network, addr)
 	switch network {
 	case "tcp":
@@ -33,7 +34,7 @@ func NewNet(network, addr string, log *slog.SugaredLogger) (Net, error) {
 }
 
 type netBase struct {
-	log         *slog.SugaredLogger
+	log         *log.SugaredLogger
 	logMsg      bool
 	blackPackId map[uint32]struct{}
 	connNum     int64 // 连接数
@@ -80,10 +81,7 @@ const (
 	ServerMsg
 )
 
-func (c *netBase) logMag(tp int, serverTag string, isLog bool, uid, cmdId uint32, payloadMsg pb.Message) {
-	if !isLog {
-		return
-	}
+func (c *netBase) logMag(tp int, serverTag string, isLog bool, uid uint32, head *proto.PacketHead, payloadMsg pb.Message) {
 	var s string
 	switch tp {
 	case ClientMsg:
@@ -91,11 +89,22 @@ func (c *netBase) logMag(tp int, serverTag string, isLog bool, uid, cmdId uint32
 	case ServerMsg:
 		s = "s -> c"
 	}
-	c.log.Debugf("%s[Server:%s][UID:%v][CMD:%s]Pack:%s",
+	if !isLog {
+		c.log.With.Debugf("%s[Server:%s][UID:%v][PacketId:%v][CMD:%s]Pack:%s",
+			s,
+			serverTag,
+			uid,
+			head.PacketId,
+			cmd.Get().GetCmdNameByCmdId(head.MsgId),
+			protojson.Format(payloadMsg))
+		return
+	}
+	c.log.Debugf("%s[Server:%s][UID:%v][PacketId:%v][CMD:%s]Pack:%s",
 		s,
 		serverTag,
 		uid,
-		cmd.Get().GetCmdNameByCmdId(cmdId),
+		head.PacketId,
+		cmd.Get().GetCmdNameByCmdId(head.MsgId),
 		protojson.Format(payloadMsg),
 	)
 }

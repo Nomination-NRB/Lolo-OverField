@@ -20,6 +20,14 @@ func (g *Game) PlayerSceneRecord(s *model.Player, msg *alg.GameMsg) {
 		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
 		return
 	}
+	if charRecorderDataLst := req.Data.CharRecorderDataLst; charRecorderDataLst != nil {
+		for _, v := range charRecorderDataLst {
+			if v.Rot != nil && v.Pos != nil {
+				scenePlayer.Rot = v.Rot
+				scenePlayer.Pos = v.Pos
+			}
+		}
+	}
 	scenePlayer.channelInfo.addSceneSyncDataChan <- &proto.SceneSyncData{
 		PlayerId: s.UserId,
 		Data:     []*proto.PlayerRecorderData{req.Data},
@@ -158,4 +166,67 @@ func (g *Game) SceneInterActionPlayStatus(s *model.Player, msg *alg.GameMsg) {
 	}
 }
 
-func (g *Game) HandingFurniture(s *model.Player, msg *alg.GameMsg) {}
+func (g *Game) GetGardenInfo(s *model.Player, msg *alg.GameMsg) {
+	// req := msg.Body.(*proto.GetGardenInfoReq)
+	rsp := &proto.GetGardenInfoRsp{
+		Status:     proto.StatusCode_StatusCode_Ok,
+		GardenInfo: nil,
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	if scenePlayer == nil ||
+		scenePlayer.channelInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_PlayerNotInChannel
+		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
+		return
+	}
+	rsp.GardenInfo = scenePlayer.channelInfo.sceneGardenData.GardenBaseInfo()
+}
+
+func (g *Game) HandingFurniture(s *model.Player, msg *alg.GameMsg) {
+	// req := msg.Body.(*proto.HandingFurnitureReq)
+	rsp := &proto.HandingFurnitureRsp{
+		Status:      proto.StatusCode_StatusCode_Ok,
+		FurnitureId: model.NextFurnitureId(),
+	}
+	defer g.send(s, msg.PacketId, rsp)
+}
+
+func (g *Game) PlaceFurniture(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.PlaceFurnitureReq)
+	rsp := &proto.PlaceFurnitureRsp{
+		Status:               proto.StatusCode_StatusCode_Ok,
+		FurnitureDetailsInfo: nil,
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	if scenePlayer == nil ||
+		scenePlayer.channelInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_PlayerNotInChannel
+		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
+		return
+	}
+	if scenePlayer.channelInfo.ChannelId == s.UserId {
+		// 如果是自己的房间
+		ok := s.GetItemModel().AddFurnitureItem(req.FurnitureItemId)
+		if !ok {
+			rsp.Status = proto.StatusCode_StatusCode_FurnitureNumLimit
+			return
+		}
+	}
+	info := &proto.FurnitureDetailsInfo{
+		FurnitureId:     req.FurnitureId,
+		FurnitureItemId: req.FurnitureItemId,
+		Pos:             req.Pos,
+		Rotation:        req.Rot,
+		LayerNum:        req.LayerNum,
+	}
+	scenePlayer.channelInfo.gardenFurnitureChan <- &SceneGardenFurnitureCtx{
+		Remove:        false,
+		ScenePlayer:   scenePlayer,
+		FurnitureInfo: info,
+		FurnitureId:   req.FurnitureId,
+	}
+
+	rsp.FurnitureDetailsInfo = info
+}
