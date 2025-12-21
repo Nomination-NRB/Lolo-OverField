@@ -51,7 +51,7 @@ func (s *SceneInfo) newChannelInfo(channelId uint32, channelType int) *ChannelIn
 		allPlayer:            make(map[uint32]*ScenePlayer),
 		weatherType:          proto.WeatherType_WeatherType_Sunny,
 		chatChannel:          newChatChannel(),
-		sceneGardenData:      model.GetSceneGardenData(channelId, s.SceneId, channelType),
+		sceneGardenData:      model.GetSceneGardenData(channelId, s.SceneId),
 		doneChan:             make(chan struct{}),
 		freezeChan:           make(chan struct{}, 1),
 		addScenePlayerChan:   make(chan *ScenePlayer, 10),
@@ -220,6 +220,9 @@ func (c *ChannelInfo) delPlayer(scenePlayer *ScenePlayer) {
 		ActionType:  proto.SceneActionType_SceneActionType_Leave,
 	})
 
+	if scenePlayer.UserId != c.ChannelId {
+		c.sceneGardenData.RemoveFurniture(scenePlayer.Player, c.ChannelId, 0)
+	}
 	c.chatChannel.delUserChan <- scenePlayer.UserId
 }
 
@@ -306,7 +309,7 @@ type SceneGardenFurnitureCtx struct {
 func (c *ChannelInfo) SceneGardenFurnitureUpdate(ctx *SceneGardenFurnitureCtx) {
 	if ctx.Remove { // 移除
 		furnitureInfo := c.sceneGardenData.RemoveFurniture(
-			ctx.ScenePlayer.UserId,
+			ctx.ScenePlayer.Player,
 			c.ChannelId, ctx.FurnitureId)
 		if furnitureInfo != nil {
 			notice := &proto.SceneGardenFurnitureRemoveNotice{
@@ -319,7 +322,7 @@ func (c *ChannelInfo) SceneGardenFurnitureUpdate(ctx *SceneGardenFurnitureCtx) {
 		}
 	} else { // 添加
 		c.sceneGardenData.AddFurniture(
-			ctx.ScenePlayer.UserId,
+			ctx.ScenePlayer.Player,
 			c.ChannelId,
 			ctx.FurnitureInfo,
 		)

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bytedance/sonic"
+
 	"gucooing/lolo/db"
 	"gucooing/lolo/gdconf"
 	"gucooing/lolo/pkg/alg"
@@ -15,6 +17,7 @@ import (
 const (
 	ChannelTypePublic = iota
 	ChannelTypePrivate
+	PrivateChannelStart = 1000000
 )
 
 var (
@@ -28,19 +31,21 @@ func NextFurnitureId() int64 {
 
 // 房间花园数据
 type SceneGardenData struct {
-	SceneId                     uint32                           `json:"sceneId;omitempty"`         // 场景
-	GardenName                  string                           `json:"gardenName;omitempty"`      // 花园名称
-	LikesNum                    int64                            `json:"likesNum;omitempty"`        // 点赞数
-	AccessPlayerNum             int64                            `json:"accessPlayerNum;omitempty"` // 访问数
-	LeftLikeNum                 uint32                           `json:"leftLikeNum;omitempty"`
-	IsOpen                      bool                             `json:"isOpen;omitempty"`                 // 是否开放
+	DBID                        uint64                           `json:"-"`                         // 数据库主键
+	SceneId                     uint32                           `json:"sceneId,omitempty"`         // 场景id
+	UserId                      uint32                           `json:"userId,omitempty"`          // 玩家id
+	GardenName                  string                           `json:"gardenName,omitempty"`      // 花园名称
+	LikesNum                    int64                            `json:"likesNum,omitempty"`        // 点赞数
+	AccessPlayerNum             int64                            `json:"accessPlayerNum,omitempty"` // 访问数
+	LeftLikeNum                 uint32                           `json:"leftLikeNum,omitempty"`
+	IsOpen                      bool                             `json:"isOpen,omitempty"`                 // 是否开放
 	Password                    string                           `json:"password"`                         // 密码
-	GardenFurnitureInfoMap      map[int64]*FurnitureDetailsInfo  `json:"gardenFurnitureInfoMap;omitempty"` // 主人家具信息
+	PasswordExpireTime          int64                            `json:"passwordExpireTime,omitempty"`     // 下次改密时间
+	GardenFurnitureInfoMap      map[int64]*FurnitureDetailsInfo  `json:"gardenFurnitureInfoMap,omitempty"` // 主人家具信息
 	OtherPlayerFurnitureInfoMap map[uint32]*FurnitureDetailsInfo `json:"-"`                                // 客人家具信息
-
 }
 
-func GetSceneGardenData(userId, sceneId uint32, channelType int) *SceneGardenData {
+func GetSceneGardenData(userId, sceneId uint32) *SceneGardenData {
 	if sceneId != 9999 {
 		return &SceneGardenData{
 			SceneId:                     sceneId,
@@ -49,7 +54,7 @@ func GetSceneGardenData(userId, sceneId uint32, channelType int) *SceneGardenDat
 		}
 	}
 	data, ok := sceneGardenCache.Get(fmt.Sprintf("%v|%v", userId, sceneId))
-	if channelType == ChannelTypePublic {
+	if userId < PrivateChannelStart {
 		if !ok {
 			data = &SceneGardenData{
 				SceneId:                     sceneId,
@@ -66,15 +71,24 @@ func GetSceneGardenData(userId, sceneId uint32, channelType int) *SceneGardenDat
 				return nil
 			}
 			data = &SceneGardenData{
+				DBID:                        home.ID,
 				SceneId:                     home.SceneID,
+				UserId:                      home.UserID,
 				GardenName:                  home.GardenName,
 				LikesNum:                    home.LikesNum,
 				AccessPlayerNum:             home.AccessPlayerNum,
 				LeftLikeNum:                 home.LeftLikeNum,
 				IsOpen:                      home.IsOpen,
 				Password:                    home.Password,
+				PasswordExpireTime:          home.PasswordExpireTime,
 				GardenFurnitureInfoMap:      make(map[int64]*FurnitureDetailsInfo),
 				OtherPlayerFurnitureInfoMap: make(map[uint32]*FurnitureDetailsInfo),
+			}
+			if len(home.GardenFurnitureInfoMap) != 0 {
+				if err := sonic.Unmarshal(home.GardenFurnitureInfoMap, &data.GardenFurnitureInfoMap); err != nil {
+					log.Game.Errorf("UserId:%v SceneId:%v GardenFurnitureInfoMapUnmarshal err:%v",
+						userId, sceneId, err)
+				}
 			}
 			sceneGardenCache.Set(fmt.Sprintf("%v|%v", userId, sceneId), data)
 		}
@@ -83,11 +97,11 @@ func GetSceneGardenData(userId, sceneId uint32, channelType int) *SceneGardenDat
 }
 
 type FurnitureDetailsInfo struct {
-	FurnitureId     int64    `json:"furnitureId;omitempty"`     // 家具id
-	FurnitureItemId uint32   `json:"furnitureItemId;omitempty"` // 家具物品id
-	Pos             *Vector3 `json:"pos;omitempty"`             // 坐标
-	Rotation        *Vector3 `json:"rotation;omitempty"`        // 坐标
-	LayerNum        uint32   `json:"layerNum;omitempty"`
+	FurnitureId     int64    `json:"furnitureId,omitempty"`     // 家具id
+	FurnitureItemId uint32   `json:"furnitureItemId,omitempty"` // 家具物品id
+	Pos             *Vector3 `json:"pos,omitempty"`             // 坐标
+	Rotation        *Vector3 `json:"rotation,omitempty"`        // 坐标
+	LayerNum        uint32   `json:"layerNum,omitempty"`
 }
 
 type Vector3 struct {
@@ -114,7 +128,7 @@ func (f *FurnitureDetailsInfo) FurnitureDetailsInfo() *proto.FurnitureDetailsInf
 	}
 }
 
-func (s *SceneGardenData) AddFurniture(userId, channelId uint32, furniture *proto.FurnitureDetailsInfo) {
+func (s *SceneGardenData) AddFurniture(user *Player, channelId uint32, furniture *proto.FurnitureDetailsInfo) {
 	info := &FurnitureDetailsInfo{
 		FurnitureId:     furniture.FurnitureId,
 		FurnitureItemId: furniture.FurnitureItemId,
@@ -122,29 +136,59 @@ func (s *SceneGardenData) AddFurniture(userId, channelId uint32, furniture *prot
 		Rotation:        ToVector3(furniture.Rotation),
 		LayerNum:        furniture.LayerNum,
 	}
-	if userId != channelId {
+	if user.UserId != channelId {
 		// 客人
-		s.OtherPlayerFurnitureInfoMap[userId] = info
+		s.OtherPlayerFurnitureInfoMap[user.UserId] = info
 	} else {
 		// 主人
+		user.GetItemModel().AddFurnitureItem(info.FurnitureItemId)
 		s.GardenFurnitureInfoMap[furniture.FurnitureId] = info
+		s.Save()
 	}
 }
 
 // 删除家具
-func (s *SceneGardenData) RemoveFurniture(userId, channelId uint32, furnitureId int64) *FurnitureDetailsInfo {
-	if userId != channelId {
-		info, ok := s.OtherPlayerFurnitureInfoMap[userId]
+func (s *SceneGardenData) RemoveFurniture(user *Player, channelId uint32, furnitureId int64) *FurnitureDetailsInfo {
+	if user.UserId != channelId {
+		info, ok := s.OtherPlayerFurnitureInfoMap[user.UserId]
 		if ok {
-			delete(s.OtherPlayerFurnitureInfoMap, userId)
+			delete(s.OtherPlayerFurnitureInfoMap, user.UserId)
 		}
 		return info
 	} else {
 		info, ok := s.GardenFurnitureInfoMap[furnitureId]
 		if ok {
+			user.GetItemModel().DelFurnitureItem(info.FurnitureItemId)
 			delete(s.GardenFurnitureInfoMap, furnitureId)
+			s.Save()
 		}
 		return info
+	}
+}
+
+func (s *SceneGardenData) Save() {
+	h := &db.OFHome{
+		ID:                     s.DBID,
+		UserID:                 s.UserId,
+		SceneID:                s.SceneId,
+		GardenName:             s.GardenName,
+		LikesNum:               s.LikesNum,
+		AccessPlayerNum:        s.AccessPlayerNum,
+		LeftLikeNum:            s.LeftLikeNum,
+		IsOpen:                 s.IsOpen,
+		Password:               s.Password,
+		PasswordExpireTime:     s.PasswordExpireTime,
+		GardenFurnitureInfoMap: nil,
+	}
+	bin, err := sonic.Marshal(s.GardenFurnitureInfoMap)
+	if err != nil {
+		log.Game.Errorf("玩家花园数据:%v序列化失败err:%s",
+			s.UserId, err.Error())
+		return
+	}
+	h.GardenFurnitureInfoMap = bin
+	if err := db.SaveOFHome(h); err != nil {
+		log.Game.Errorf("UserId:%v SceneId:%v db.SaveOFHome err:%s", s.UserId, s.SceneId, err.Error())
 	}
 }
 

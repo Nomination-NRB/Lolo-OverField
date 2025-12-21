@@ -28,6 +28,15 @@ func (g *Game) newRouter() {
 		cmd.GetGardenInfoReq:              g.GetGardenInfo,              // 获取花园信息请求
 		cmd.HandingFurnitureReq:           g.HandingFurniture,           // 搬起家具请求
 		cmd.PlaceFurnitureReq:             g.PlaceFurniture,             // 摆放家具请求
+		cmd.TakeOutHandingFurnitureReq:    g.TakeOutHandingFurniture,    // 回收家具请求
+		cmd.TakeOutFurnitureReq:           g.TakeOutFurniture,           // 拿起家具请求
+		// 花园
+		cmd.SwitchGardenStatusReq:        g.SwitchGardenStatus,        // 更新花园设置
+		cmd.GardenLikeRecordReq:          g.GardenLikeRecord,          // 花园点赞记录
+		cmd.GardenFurnitureSchemeReq:     g.GardenFurnitureScheme,     // 获取预设花园请求
+		cmd.GardenSchemeFurnitureListReq: g.GardenSchemeFurnitureList, // 获取预设花园家具列表
+		cmd.GardenFurnitureSaveReq:       g.GardenFurnitureSave,       // 将花园保存到预设
+		cmd.GardenFurnitureRemoveAllReq:  g.GardenFurnitureRemoveAll,  // 清空全部家具
 		// 队伍
 		cmd.UpdateTeamReq: g.UpdateTeam, // 更新队伍
 		// 物品

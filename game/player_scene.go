@@ -208,7 +208,7 @@ func (g *Game) PlaceFurniture(s *model.Player, msg *alg.GameMsg) {
 	}
 	if scenePlayer.channelInfo.ChannelId == s.UserId {
 		// 如果是自己的房间
-		ok := s.GetItemModel().AddFurnitureItem(req.FurnitureItemId)
+		ok := s.GetItemModel().CheckFurnitureItem(req.FurnitureItemId)
 		if !ok {
 			rsp.Status = proto.StatusCode_StatusCode_FurnitureNumLimit
 			return
@@ -229,4 +229,34 @@ func (g *Game) PlaceFurniture(s *model.Player, msg *alg.GameMsg) {
 	}
 
 	rsp.FurnitureDetailsInfo = info
+}
+
+func (g *Game) TakeOutHandingFurniture(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.TakeOutHandingFurnitureReq)
+	rsp := &proto.TakeOutHandingFurnitureRsp{
+		Status:      proto.StatusCode_StatusCode_Ok,
+		FurnitureId: req.FurnitureId,
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	if scenePlayer == nil ||
+		scenePlayer.channelInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_PlayerNotInChannel
+		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
+		return
+	}
+	scenePlayer.channelInfo.gardenFurnitureChan <- &SceneGardenFurnitureCtx{
+		Remove:      true,
+		ScenePlayer: scenePlayer,
+		FurnitureId: req.FurnitureId,
+	}
+}
+
+func (g *Game) TakeOutFurniture(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.TakeOutFurnitureReq)
+	rsp := &proto.TakeOutFurnitureRsp{
+		Status:      proto.StatusCode_StatusCode_Ok,
+		FurnitureId: req.FurnitureId,
+	}
+	defer g.send(s, msg.PacketId, rsp)
 }

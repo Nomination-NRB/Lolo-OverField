@@ -13,9 +13,8 @@ import (
 )
 
 var (
-	minChannelId        = uint32(1)
-	maxChannelId        = uint32(99999)
-	privateChannelStart = 1000000
+	minChannelId = uint32(1)
+	maxChannelId = uint32(99999)
 )
 
 type WordInfo struct {
@@ -113,7 +112,7 @@ func (s *SceneInfo) getSceneChannel(channelId uint32) (*ChannelInfo, error) {
 		list[channelId] = info
 		return info, nil
 	}
-	if channelId >= uint32(privateChannelStart) &&
+	if channelId >= model.PrivateChannelStart &&
 		db.IsUserExists(channelId) {
 		info := s.newChannelInfo(channelId, model.ChannelTypePrivate)
 		list[channelId] = info

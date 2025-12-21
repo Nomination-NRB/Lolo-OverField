@@ -27,6 +27,7 @@ type Player struct {
 	Archive       *ArchiveModel   `json:"archive,omitempty"`       // 信息记录
 	Chat          *ChatModel      `json:"chat,omitempty"`          // 聊天
 	Gacha         *GachaModel     `json:"gacha,omitempty"`         // 卡池
+	Garden        *GardenModel    `json:"garden,omitempty"`        // 花园
 }
 
 // 将玩家状态重置成在线
@@ -78,7 +79,8 @@ func (s *Player) IsOffline() bool {
 
 func (s *Player) SavePlayer() error {
 	s.SetLastSaveTime()
-	err := db.SaveOFGame(s.UserId, func(user *db.OFGame) bool {
+	var laseErr error
+	if err := db.SaveOFGame(s.UserId, func(user *db.OFGame) bool {
 		bin, err := sonic.Marshal(s)
 		if err != nil {
 			log.Game.Errorf("玩家:%v序列化失败err:%s",
@@ -87,9 +89,9 @@ func (s *Player) SavePlayer() error {
 		}
 		user.BinData = bin
 		return true
-	})
-	if err != nil {
-		return err
+	}); err != nil {
+		laseErr = err
 	}
-	return nil
+
+	return laseErr
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type OFUser struct {
-	UserId    uint32 `gorm:"primarykey;autoIncrement:1000000"`
+	UserId    uint32 `gorm:"primarykey;autoIncrement"`
 	SdkUid    uint32 `gorm:"unique"`
 	Token     string
 	DeviceId  string // 设备码

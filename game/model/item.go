@@ -831,7 +831,13 @@ func (i *ItemModel) FurnitureItemInfo() []*proto.BaseItem {
 }
 
 // 摆放家具
-func (i *ItemModel) AddFurnitureItem(item uint32) bool {
+func (i *ItemModel) AddFurnitureItem(item uint32) {
+	furnitureItem := i.GetFurnitureItemInfo(item)
+	furnitureItem.Num++
+}
+
+// 验证家具数量
+func (i *ItemModel) CheckFurnitureItem(item uint32) bool {
 	furnitureItem := i.GetFurnitureItemInfo(item)
 	itemInfo := i.GetItemBaseInfo(item)
 	if itemInfo == nil || furnitureItem == nil {
@@ -840,7 +846,6 @@ func (i *ItemModel) AddFurnitureItem(item uint32) bool {
 	if itemInfo.Num < furnitureItem.Num+1 {
 		return false
 	}
-	furnitureItem.Num++
 	return true
 }
 

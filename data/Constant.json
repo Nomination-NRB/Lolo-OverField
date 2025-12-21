@@ -9,5 +9,6 @@
   "DefaultChannelId": 1314,
   "DefaultChatChannelId": 1000,
   "ChannelTick": 200,
-  "FurnitureLimitNum": 100
+  "FurnitureLimitNum": 100,
+  "GardenSchemeNum": 2
 }

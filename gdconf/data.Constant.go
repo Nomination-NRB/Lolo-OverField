@@ -12,6 +12,7 @@ type Constant struct {
 	DefaultChatChannelId uint32   `json:"DefaultChatChannelId"`
 	ChannelTick          int      `json:"ChannelTick"`
 	FurnitureLimitNum    uint32   `json:"FurnitureLimitNum"`
+	GardenSchemeNum      uint32   `json:"GardenSchemeNum"`
 }
 
 func (g *GameConfig) loadConstant() {
