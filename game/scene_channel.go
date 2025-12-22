@@ -221,7 +221,7 @@ func (c *ChannelInfo) delPlayer(scenePlayer *ScenePlayer) {
 	})
 
 	if scenePlayer.UserId != c.ChannelId {
-		c.sceneGardenData.RemoveFurniture(scenePlayer.Player, c.ChannelId, 0)
+		c.sceneGardenData.RemoveFurniture(scenePlayer.Player, c.ChannelId, 0, false)
 	}
 	c.chatChannel.delUserChan <- scenePlayer.UserId
 }
@@ -299,10 +299,12 @@ func (c *ChannelInfo) serverSceneSync(ctx *ServerSceneSyncCtx) {
 }
 
 type SceneGardenFurnitureCtx struct {
-	Remove        bool                        // 删除家具
-	ScenePlayer   *ScenePlayer                // 操作玩家
-	FurnitureInfo *proto.FurnitureDetailsInfo // 添加的家具信息
-	FurnitureId   int64                       // 删除的家具信息
+	Remove         bool                          // 删除家具
+	ScenePlayer    *ScenePlayer                  // 操作玩家
+	FurnitureInfo  *proto.FurnitureDetailsInfo   // 添加的家具信息
+	FurnitureInfos []*proto.FurnitureDetailsInfo // 覆盖式更新家具
+	AllUpdate      bool                          // 是否覆盖更新
+	FurnitureId    int64                         // 删除的家具信息
 }
 
 // 花园家具更新
@@ -310,7 +312,7 @@ func (c *ChannelInfo) SceneGardenFurnitureUpdate(ctx *SceneGardenFurnitureCtx) {
 	if ctx.Remove { // 移除
 		furnitureInfo := c.sceneGardenData.RemoveFurniture(
 			ctx.ScenePlayer.Player,
-			c.ChannelId, ctx.FurnitureId)
+			c.ChannelId, ctx.FurnitureId, true)
 		if furnitureInfo != nil {
 			notice := &proto.SceneGardenFurnitureRemoveNotice{
 				Status:      proto.StatusCode_StatusCode_Ok,
@@ -320,11 +322,27 @@ func (c *ChannelInfo) SceneGardenFurnitureUpdate(ctx *SceneGardenFurnitureCtx) {
 			}
 			c.sendAllPlayer(0, notice)
 		}
-	} else { // 添加
+	} else if ctx.AllUpdate && ctx.ScenePlayer.UserId == c.ChannelId { // 移除全部
+		for _, v := range c.sceneGardenData.GardenFurnitureInfoMap {
+			c.sceneGardenData.RemoveFurniture(
+				ctx.ScenePlayer.Player,
+				c.ChannelId, v.FurnitureId, false)
+		}
+		mapLen := len(ctx.FurnitureInfos)
+		i := 1
+		for _, v := range ctx.FurnitureInfos {
+			c.sceneGardenData.AddFurniture(
+				ctx.ScenePlayer.Player,
+				c.ChannelId, v, mapLen == i)
+			i++
+		}
+		c.GardenFurnitureBatchUpdateNotice(ctx.ScenePlayer)
+	} else if ctx.FurnitureInfo != nil { // 添加
 		c.sceneGardenData.AddFurniture(
 			ctx.ScenePlayer.Player,
 			c.ChannelId,
 			ctx.FurnitureInfo,
+			true,
 		)
 		notice := &proto.SceneGardenFurnitureUpdateNotice{
 			Status:        proto.StatusCode_StatusCode_Ok,
@@ -332,6 +350,16 @@ func (c *ChannelInfo) SceneGardenFurnitureUpdate(ctx *SceneGardenFurnitureCtx) {
 		}
 		c.sendAllPlayer(0, notice)
 	}
+}
+
+func (c *ChannelInfo) GardenFurnitureBatchUpdateNotice(player *ScenePlayer) {
+	notice := &proto.GardenFurnitureBatchUpdateNotice{
+		Status:            proto.StatusCode_StatusCode_Ok,
+		PlayerId:          player.UserId,
+		FurniturePointNum: 0,
+		NewFurnitureList:  c.sceneGardenData.NewFurnitureList(),
+	}
+	c.sendAllPlayer(0, notice)
 }
 
 // action同步上下文

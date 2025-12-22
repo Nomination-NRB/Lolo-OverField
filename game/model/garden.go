@@ -1,23 +1,18 @@
 package model
 
 import (
-	"fmt"
-
 	"gucooing/lolo/gdconf"
-)
-
-var (
-	gardenModelKey = func(index uint32) string {
-		return fmt.Sprintf("预设%d", index+1)
-	}
+	"gucooing/lolo/pkg/alg"
+	"gucooing/lolo/protocol/proto"
 )
 
 type GardenModel struct {
-	SchemeMap map[uint32]*GardenSchemeInfo
+	SchemeMap map[uint32]*GardenSchemeInfo `json:"schemeMap,omitempty"`
 }
 
 type GardenSchemeInfo struct {
-	SchemeName string
+	SchemeName       string                          `json:"schemeName,omitempty"`
+	FurnitureInfoMap map[int64]*FurnitureDetailsInfo `json:"furnitureInfoMap,omitempty"` // 家具信息
 }
 
 func (s *Player) GetGardenModel() *GardenModel {
@@ -36,16 +31,37 @@ func (s *GardenModel) GetSchemeMap() map[uint32]*GardenSchemeInfo {
 
 func (s *GardenModel) Schemes() map[uint32]string {
 	schemes := make(map[uint32]string, gdconf.GetConstant().GardenSchemeNum)
-	list := s.GetSchemeMap()
 	for index := range gdconf.GetConstant().GardenSchemeNum {
-		info, ok := list[index]
-		if !ok {
-			info = &GardenSchemeInfo{
-				SchemeName: gardenModelKey(index),
-			}
-			list[index] = info
-		}
+		info := s.GetGardenSchemeInfo(index)
 		schemes[index] = info.SchemeName
 	}
 	return schemes
+}
+
+func (s *GardenModel) GetGardenSchemeInfo(schemeId uint32) *GardenSchemeInfo {
+	list := s.GetSchemeMap()
+	info, ok := list[schemeId]
+	if !ok {
+		info = &GardenSchemeInfo{
+			SchemeName: "",
+		}
+		list[schemeId] = info
+	}
+	return info
+}
+
+func (s *GardenSchemeInfo) FurnitureItemId() []uint32 {
+	furnitureItemId := make([]uint32, len(s.FurnitureInfoMap))
+	for _, v := range s.FurnitureInfoMap {
+		alg.AddLists(&furnitureItemId, v.FurnitureItemId)
+	}
+	return furnitureItemId
+}
+
+func (s *GardenSchemeInfo) FurnitureDetailsInfos() []*proto.FurnitureDetailsInfo {
+	list := make([]*proto.FurnitureDetailsInfo, len(s.FurnitureInfoMap))
+	for _, v := range s.FurnitureInfoMap {
+		alg.AddList(&list, v.FurnitureDetailsInfo())
+	}
+	return list
 }

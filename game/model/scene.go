@@ -128,7 +128,8 @@ func (f *FurnitureDetailsInfo) FurnitureDetailsInfo() *proto.FurnitureDetailsInf
 	}
 }
 
-func (s *SceneGardenData) AddFurniture(user *Player, channelId uint32, furniture *proto.FurnitureDetailsInfo) {
+func (s *SceneGardenData) AddFurniture(user *Player, channelId uint32,
+	furniture *proto.FurnitureDetailsInfo, save bool) {
 	info := &FurnitureDetailsInfo{
 		FurnitureId:     furniture.FurnitureId,
 		FurnitureItemId: furniture.FurnitureItemId,
@@ -143,12 +144,14 @@ func (s *SceneGardenData) AddFurniture(user *Player, channelId uint32, furniture
 		// 主人
 		user.GetItemModel().AddFurnitureItem(info.FurnitureItemId)
 		s.GardenFurnitureInfoMap[furniture.FurnitureId] = info
-		s.Save()
+		if save {
+			s.Save()
+		}
 	}
 }
 
 // 删除家具
-func (s *SceneGardenData) RemoveFurniture(user *Player, channelId uint32, furnitureId int64) *FurnitureDetailsInfo {
+func (s *SceneGardenData) RemoveFurniture(user *Player, channelId uint32, furnitureId int64, save bool) *FurnitureDetailsInfo {
 	if user.UserId != channelId {
 		info, ok := s.OtherPlayerFurnitureInfoMap[user.UserId]
 		if ok {
@@ -160,6 +163,9 @@ func (s *SceneGardenData) RemoveFurniture(user *Player, channelId uint32, furnit
 		if ok {
 			user.GetItemModel().DelFurnitureItem(info.FurnitureItemId)
 			delete(s.GardenFurnitureInfoMap, furnitureId)
+			save = save == true
+		}
+		if save {
 			s.Save()
 		}
 		return info
@@ -214,6 +220,14 @@ func (s *SceneGardenData) SceneGardenData() *proto.SceneGardenData {
 		}
 	}
 	return info
+}
+
+func (s *SceneGardenData) NewFurnitureList() []*proto.FurnitureDetailsInfo {
+	list := make([]*proto.FurnitureDetailsInfo, 0)
+	for _, v := range s.GardenFurnitureInfoMap {
+		alg.AddList(&list, v.FurnitureDetailsInfo())
+	}
+	return list
 }
 
 func (s *SceneGardenData) GardenBaseInfo() *proto.GardenBaseInfo {

@@ -1,8 +1,11 @@
 package game
 
 import (
+	"maps"
+
 	"gucooing/lolo/game/model"
 	"gucooing/lolo/pkg/alg"
+	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/proto"
 )
 
@@ -47,7 +50,7 @@ func (g *Game) GardenSchemeFurnitureList(s *model.Player, msg *alg.GameMsg) {
 	rsp := &proto.GardenSchemeFurnitureListRsp{
 		Status:          proto.StatusCode_StatusCode_Ok,
 		SchemeId:        req.SchemeId,
-		FurnitureItemId: make([]uint32, 0),
+		FurnitureItemId: s.GetGardenModel().GetGardenSchemeInfo(req.SchemeId).FurnitureItemId(),
 	}
 	defer g.send(s, msg.PacketId, rsp)
 }
@@ -59,6 +62,11 @@ func (g *Game) GardenFurnitureSave(s *model.Player, msg *alg.GameMsg) {
 		SchemeId: req.SchemeId,
 	}
 	defer g.send(s, msg.PacketId, rsp)
+	curGarden := model.GetSceneGardenData(s.UserId, 9999)
+	schema := s.GetGardenModel().GetGardenSchemeInfo(req.SchemeId)
+	schema.FurnitureInfoMap = make(map[int64]*model.FurnitureDetailsInfo)
+
+	maps.Copy(schema.FurnitureInfoMap, curGarden.GardenFurnitureInfoMap)
 }
 
 func (g *Game) GardenFurnitureRemoveAll(s *model.Player, msg *alg.GameMsg) {
@@ -67,4 +75,51 @@ func (g *Game) GardenFurnitureRemoveAll(s *model.Player, msg *alg.GameMsg) {
 		Status: proto.StatusCode_StatusCode_Ok,
 	}
 	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	if scenePlayer == nil ||
+		scenePlayer.channelInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_PlayerNotInChannel
+		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
+		return
+	}
+	scenePlayer.channelInfo.gardenFurnitureChan <- &SceneGardenFurnitureCtx{
+		FurnitureInfos: make([]*proto.FurnitureDetailsInfo, 0),
+		AllUpdate:      true,
+		ScenePlayer:    scenePlayer,
+	}
+}
+
+func (g *Game) GardenFurnitureSchemeSetName(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.GardenFurnitureSchemeSetNameReq)
+	rsp := &proto.GardenFurnitureSchemeSetNameRsp{
+		Status:   proto.StatusCode_StatusCode_Ok,
+		SchemeId: req.SchemeId,
+		Name:     "",
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	schema := s.GetGardenModel().GetGardenSchemeInfo(req.SchemeId)
+	schema.SchemeName = req.Name
+	rsp.Name = schema.SchemeName
+}
+
+func (g *Game) GardenFurnitureApplyScheme(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.GardenFurnitureApplySchemeReq)
+	rsp := &proto.GardenFurnitureApplySchemeRsp{
+		Status:   proto.StatusCode_StatusCode_Ok,
+		SchemeId: req.SchemeId,
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	if scenePlayer == nil ||
+		scenePlayer.channelInfo == nil {
+		rsp.Status = proto.StatusCode_StatusCode_PlayerNotInChannel
+		log.Game.Warnf("玩家:%v没有加入房间", s.UserId)
+		return
+	}
+	schema := s.GetGardenModel().GetGardenSchemeInfo(req.SchemeId)
+	scenePlayer.channelInfo.gardenFurnitureChan <- &SceneGardenFurnitureCtx{
+		FurnitureInfos: schema.FurnitureDetailsInfos(),
+		AllUpdate:      true,
+		ScenePlayer:    scenePlayer,
+	}
 }
