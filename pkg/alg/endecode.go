@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/aes"
+	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	log2 "log"
+	"sort"
+	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
@@ -159,6 +163,11 @@ func AutoCryptoMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		// 签名
+		if req.Sign != SingBytes(reqPlainText, singKey) {
+			c.Abort()
+			return
+		}
 		// debug
 		// log.App.Debugf("auto :%s req:%s", c.Request.URL.Path, string(reqPlainText))
 		// 写入请求
@@ -180,7 +189,49 @@ func DecryptedData(c *gin.Context, d any) error {
 	return nil
 }
 
-func RandStr(length int) string {
+func SingBytes(data, str []byte) string {
+	mParams := make(map[string]interface{})
+	err := sonic.Unmarshal(data, &mParams)
+	if err != nil {
+		return ""
+	}
+	return SignData(mParams, string(str))
+}
+
+func SignData(params map[string]interface{}, str string) string {
+	if params == nil || len(params) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var buffer strings.Builder
+	for _, key := range keys {
+		buffer.WriteString(key)
+		buffer.WriteString("=")
+		buffer.WriteString(fmt.Sprintf("%v", params[key]))
+		buffer.WriteString("&")
+	}
+	buffer.WriteString(str)
+
+	return GetMD5Str(buffer.String())
+}
+
+func GetMD5Str(str string) string {
+	hash := md5.New()
+	hash.Write([]byte(str))
+	hashBytes := hash.Sum(nil)
+	var hexBuilder strings.Builder
+	for _, b := range hashBytes {
+		hexStr := fmt.Sprintf("%02x", b&0xff)
+		hexBuilder.WriteString(hexStr)
+	}
+	return hexBuilder.String()
+}
+
+func RandStr(length int, id uint32) string {
 	key := make([]byte, length)
 	rand.Read(key)
 	return base64.URLEncoding.EncodeToString(key)

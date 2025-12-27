@@ -27,8 +27,8 @@ func (s *Server) Router() {
 		}
 		user := v1.Group("/user")
 		{
-			user.POST("/loginByName", loginByName)
-			user.POST("/autoLogin", autoLogin)
+			user.POST("/loginByName", s.loginByName)
+			user.POST("/autoLogin", s.autoLogin)
 		}
 	}
 
@@ -40,8 +40,8 @@ func (s *Server) Router() {
 		}
 		user := v2.Group("/user")
 		{
-			user.POST("/loginByName", loginByName)
-			user.POST("/autoLogin", autoLogin)
+			user.POST("/loginByName", s.loginByName)
+			user.POST("/autoLogin", s.autoLogin)
 		}
 	}
 }

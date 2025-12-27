@@ -71,6 +71,7 @@ func (g *GameConfig) load() {
 	g.loadConstant()
 	g.loadClientVersion()
 	g.loadGachaProbability()
+	g.loadRsaPem()
 
 	// excel
 	g.loadHead()
@@ -97,6 +98,7 @@ type Data struct {
 	Constant          *Constant
 	ClientVersion     *ClientVersion
 	GachaProbabilitys map[int32]*GachaProbability
+	RsaPem            *RsaPem
 }
 
 type Excel struct {
@@ -132,4 +134,13 @@ func ReadJson[T any](path, name string, t *T) {
 		return
 	}
 	log.App.Infof("文件:%s 读取成功", name)
+}
+
+func ReadFile(ajx *[]byte, path string) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		log.App.Errorf("文件:%s 读取失败,err:%s", path, err)
+		return
+	}
+	*ajx = file
 }

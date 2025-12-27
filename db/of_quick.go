@@ -7,7 +7,7 @@ type OFQuick struct {
 	Password  string `gorm:"not null"`
 	RegDevice string `gorm:"not null"`
 	UserToken string // 网关登录
-	AuthToken string `gorm:"unique;not null"` // 自动登录
+	AuthToken string `gorm:"not null"` // 自动登录
 }
 
 func CreateOFQuick(username string, password string) (*OFQuick, error) {
@@ -19,7 +19,13 @@ func CreateOFQuick(username string, password string) (*OFQuick, error) {
 	return q, err
 }
 
-func GetOFQuick(username, password string) (*OFQuick, error) {
+func GetOFQuick(id uint32) (*OFQuick, error) {
+	q := new(OFQuick)
+	err := db.Where("id = ?", id).First(q).Error
+	return q, err
+}
+
+func OrCreateOFQuick(username, password string) (*OFQuick, error) {
 	q := &OFQuick{
 		Username: username,
 		Password: password,
@@ -28,12 +34,6 @@ func GetOFQuick(username, password string) (*OFQuick, error) {
 	if err != nil {
 		return nil, err
 	}
-	return q, err
-}
-
-func GetOFQuickByAuthToken(authToken string) (*OFQuick, error) {
-	q := new(OFQuick)
-	err := db.Where("auth_token = ?", authToken).First(q).Error
 	return q, err
 }
 
