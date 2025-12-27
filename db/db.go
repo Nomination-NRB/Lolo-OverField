@@ -72,6 +72,7 @@ func NewDB(option *Option) error {
 	sqlDB.SetConnMaxLifetime(d.option.ConnMaxLifetime)
 
 	err = d.db.AutoMigrate(
+		&OFQuick{},
 		&OFUser{},
 		&OFGame{},
 		&OFGameBasic{},

@@ -19,10 +19,15 @@
 3. 使用`main/main.exe config gen`生成或补齐`config.json`修改`config.json`文件
 4. 启动Lolo和客户端
 
+## 更多提示
+1. 如果你需要使用Lolo的SDK登录，请正则代理`http://sdkapi-of.inutan.com`到服务器http （默认:`http://127.0.0.1:18881`）需要注意的是此功能为实验性功能不保证可靠
+2. 更简单的的安卓代理方法(在任何模拟器中都无法使用):[AnimeGamesProxy](https://github.com/Xuoos/AnimeGamesProxy/releases)
+
 ## 已实现功能
 
 - [x] 登录
-  - [ ] sdk登录
+  - [x] 自动注册
+  - [x] 账号密码登录
   - [x] 服务发现
 - [x] 账号
   - [x] 修改昵称
