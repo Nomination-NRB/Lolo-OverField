@@ -13,6 +13,7 @@ type OFHome struct {
 	Password               string
 	PasswordExpireTime     int64
 	GardenFurnitureInfoMap []byte
+	PlacedCharacterMap     []byte
 }
 
 // 获取/创建家园

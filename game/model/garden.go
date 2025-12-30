@@ -2,9 +2,8 @@ package model
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/bytedance/sonic"
+	"time"
 
 	"gucooing/lolo/db"
 	"gucooing/lolo/gdconf"
@@ -148,12 +147,15 @@ func GetSceneGardenData(userId, sceneId uint32) *SceneGardenData {
 				OtherPlayerFurnitureInfoMap: make(map[uint32]*FurnitureDetailsInfo),
 				PlacedCharacterMap:          make([]*proto.ScenePlacedCharacter, 0),
 			}
-			if len(home.GardenFurnitureInfoMap) != 0 {
-				if err := sonic.Unmarshal(home.GardenFurnitureInfoMap, &data.GardenFurnitureInfoMap); err != nil {
-					log.Game.Errorf("UserId:%v SceneId:%v GardenFurnitureInfoMapUnmarshal err:%v",
+			unmarshal := func(obf interface{}, bin []byte) {
+				if err := sonic.Unmarshal(bin, &obf); err != nil {
+					log.Game.Errorf("UserId:%v SceneId:%v SceneGardenData Unmarshal err:%v",
 						userId, sceneId, err)
 				}
 			}
+			unmarshal(&data.GardenFurnitureInfoMap, home.GardenFurnitureInfoMap)
+			unmarshal(&data.PlacedCharacterMap, home.PlacedCharacterMap)
+
 			sceneGardenCache.Set(fmt.Sprintf("%v|%v", userId, sceneId), data)
 		}
 	}
@@ -251,13 +253,18 @@ func (s *SceneGardenData) Save() {
 		GardenFurnitureInfoMap: nil,
 		PlacedCharacterMap:     nil,
 	}
-	bin, err := sonic.Marshal(s.GardenFurnitureInfoMap)
-	if err != nil {
-		log.Game.Errorf("玩家花园数据:%v序列化失败err:%s",
-			s.UserId, err.Error())
-		return
+	marshal := func(obf *[]byte, otc interface{}) {
+		bin, err := sonic.Marshal(otc)
+		if err != nil {
+			log.Game.Errorf("玩家花园数据:%v序列化失败err:%s",
+				s.UserId, err.Error())
+			return
+		}
+		*obf = bin
 	}
-	h.GardenFurnitureInfoMap = bin
+	marshal(&h.GardenFurnitureInfoMap, s.GardenFurnitureInfoMap)
+	marshal(&h.PlacedCharacterMap, s.PlacedCharacterMap)
+
 	if err := db.SaveOFHome(h); err != nil {
 		log.Game.Errorf("UserId:%v SceneId:%v db.SaveOFHome err:%s", s.UserId, s.SceneId, err.Error())
 	}
