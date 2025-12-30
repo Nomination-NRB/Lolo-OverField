@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/gin-gonic/gin"
 	"runtime"
 	"runtime/debug"
 	"time"
@@ -16,6 +17,7 @@ import (
 )
 
 type Game struct {
+	router              *gin.Engine // http 服务器
 	gameMsgChan         chan *GameMsg
 	killUserChan        chan uint32
 	userMap             map[uint32]*model.Player
@@ -32,10 +34,11 @@ type GameMsg struct {
 	*alg.GameMsg
 }
 
-func NewGame() *Game {
+func NewGame(router *gin.Engine) *Game {
 	conf := config.GetGame()
 	log.NewGame()
 	g := &Game{
+		router:       router,
 		gameMsgChan:  make(chan *GameMsg, conf.MsgChanSize),
 		killUserChan: make(chan uint32, 100),
 		userMap:      make(map[uint32]*model.Player),

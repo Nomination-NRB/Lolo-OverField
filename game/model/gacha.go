@@ -194,23 +194,23 @@ func (c *GachaCtx) Run() {
 		if itemInfo == nil {
 			continue
 		}
-		itemDetail := itemInfo.ItemDetail()
+		itemDetail := itemInfo.AddItemDetail()
 
 		itemDetail.ExtraQuality = 3
 
 		switch itemType {
 		case characterSSR:
 			alg.AddList(&itemDetail.Extras,
-				c.player.AddAllTypeItem(107, 1500).(*ItemBaseInfo).AddItemDetail(1500).MainItem)
+				c.player.AddAllTypeItem(107, 1500).AddItemDetail().MainItem)
 		case characterSR:
 			alg.AddList(&itemDetail.Extras,
-				c.player.AddAllTypeItem(107, 500).(*ItemBaseInfo).AddItemDetail(500).MainItem)
+				c.player.AddAllTypeItem(107, 500).AddItemDetail().MainItem)
 		case posterSSR:
 			alg.AddList(&itemDetail.Extras,
-				c.player.AddAllTypeItem(107, 500).(*ItemBaseInfo).AddItemDetail(500).MainItem)
+				c.player.AddAllTypeItem(107, 500).AddItemDetail().MainItem)
 		case posterSR:
 			alg.AddList(&itemDetail.Extras,
-				c.player.AddAllTypeItem(107, 50).(*ItemBaseInfo).AddItemDetail(50).MainItem)
+				c.player.AddAllTypeItem(107, 50).AddItemDetail().MainItem)
 		}
 		alg.AddList(&c.ItemDetails, itemDetail)
 	}

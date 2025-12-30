@@ -28,6 +28,7 @@ type Player struct {
 	Chat          *ChatModel      `json:"chat,omitempty"`          // 聊天
 	Gacha         *GachaModel     `json:"gacha,omitempty"`         // 卡池
 	Garden        *GardenModel    `json:"garden,omitempty"`        // 花园
+	Shop          *ShopModel      `json:"shop,omitempty"`          // 商店
 }
 
 // 将玩家状态重置成在线

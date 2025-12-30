@@ -58,12 +58,33 @@ func (s *Player) AllItemModel() {
 	}
 }
 
-func (s *Player) AddAllTypeItem(id uint32, num int64) EBagItemTag {
+type AddItemCtx struct {
+	EBagItemTag
+	Num int64
+}
+
+func (c *AddItemCtx) AddItemDetail() *proto.ItemDetail {
+	item := c.EBagItemTag.ItemDetail()
+	if item == nil {
+		return nil
+	}
+	switch t := item.MainItem.Item.(type) {
+	case *proto.ItemInfo_BaseItem:
+		t.BaseItem.Num = c.Num
+	}
+
+	return item
+}
+
+func (s *Player) AddAllTypeItem(id uint32, num int64) *AddItemCtx {
 	i := s.GetItemModel()
 	conf := gdconf.GetItemConfigure(id)
 	if conf == nil {
 		log.Game.Warnf("未知的物品类型ItemID:%v", id)
 		return nil
+	}
+	ctx := &AddItemCtx{
+		Num: num,
 	}
 	tag := proto.EBagItemTag(conf.NewBagItemTag)
 	switch tag {
@@ -108,18 +129,18 @@ func (s *Player) AddAllTypeItem(id uint32, num int64) EBagItemTag {
 		proto.EBagItemTag_EBagItemTag_MonthlyGiftCard,
 		proto.EBagItemTag_EBagItemTag_BattlePassGiftCard,
 		proto.EBagItemTag_EBagItemTag_SeasonalMiniGamesItem:
-		return i.AddItemBase(id, num)
+		ctx.EBagItemTag = i.AddItemBase(id, num)
 	case proto.EBagItemTag_EBagItemTag_Card: // 角色
-		return s.AddCharacter(id)
+		ctx.EBagItemTag = s.AddCharacter(id)
 	case proto.EBagItemTag_EBagItemTag_Currency:
-		return i.AddItemBase(id, num)
+		ctx.EBagItemTag = i.AddItemBase(id, num)
 	case proto.EBagItemTag_EBagItemTag_Head:
-		return i.AddHead(id)
+		ctx.EBagItemTag = i.AddHead(id)
 	case proto.EBagItemTag_EBagItemTag_UnlockItem:
 		if gdconf.GetPlayerUnlockConfigure(conf.ID) == nil {
 			return nil
 		}
-		return i.AddItemBase(id, num)
+		ctx.EBagItemTag = i.AddItemBase(id, num)
 	case proto.EBagItemTag_EBagItemTag_AbilityItem:
 	// for _, conf := range confList {
 	// 	if gdconf.GetPlayerAbilityConfigure(conf.ID) == nil {
@@ -128,20 +149,20 @@ func (s *Player) AddAllTypeItem(id uint32, num int64) EBagItemTag {
 	// 	i.AddItemBase(uint32(conf.ID), 1)
 	// }
 	case proto.EBagItemTag_EBagItemTag_Weapon:
-		return i.AddItemWeapon(id)
+		ctx.EBagItemTag = i.AddItemWeapon(id)
 	case proto.EBagItemTag_EBagItemTag_Fashion:
-		return i.AddItemFashion(id)
+		ctx.EBagItemTag = i.AddItemFashion(id)
 	case proto.EBagItemTag_EBagItemTag_Armor:
-		return i.AddItemArmor(id)
+		ctx.EBagItemTag = i.AddItemArmor(id)
 	case proto.EBagItemTag_EBagItemTag_Poster:
-		return i.AddItemPoster(id)
+		ctx.EBagItemTag = i.AddItemPoster(id)
 	case proto.EBagItemTag_EBagItemTag_Inscription:
-		return i.AddItemInscription(id)
+		ctx.EBagItemTag = i.AddItemInscription(id)
 	default:
 		log.Game.Warnf("未知的物品类型Type:%s", tag.String())
 		return nil
 	}
-	return nil
+	return ctx
 }
 
 type EBagItemTag interface {
@@ -202,23 +223,6 @@ func (i *ItemBaseInfo) ItemDetail() *proto.ItemDetail {
 				BaseItem: &proto.BaseItem{
 					ItemId: i.ItemId,
 					Num:    i.Num,
-				},
-			},
-		},
-		PackType: proto.PackType_PackType_Inventory,
-	}
-	return info
-}
-
-func (i *ItemBaseInfo) AddItemDetail(num int64) *proto.ItemDetail {
-	info := &proto.ItemDetail{
-		MainItem: &proto.ItemInfo{
-			ItemId:  i.ItemId,
-			ItemTag: i.ItemType,
-			Item: &proto.ItemInfo_BaseItem{
-				BaseItem: &proto.BaseItem{
-					ItemId: i.ItemId,
-					Num:    num,
 				},
 			},
 		},
