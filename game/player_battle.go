@@ -17,7 +17,22 @@ func (g *Game) BattleEncounterInfo(s *model.Player, msg *alg.GameMsg) {
 		alg.AddList(&rsp.Encounters, &proto.BattleEncounterData{
 			BattleId: encounterId,
 			State:    proto.BattleState_BattleState_Start,
-			BoxId:    encounterId,
+			// BoxId:    encounterId,
 		})
+	}
+}
+
+func (g *Game) BattleEncounterStateUpdate(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.BattleEncounterStateUpdateReq)
+	rsp := &proto.BattleEncounterStateUpdateRsp{
+		Status:                     proto.StatusCode_StatusCode_Ok,
+		Encounter:                  nil,
+		DynamicTreasureBoxBaseInfo: new(proto.DynamicTreasureBoxBaseData),
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	rsp.Encounter = &proto.BattleEncounterData{
+		BattleId: req.EncounterId,
+		State:    req.BattleState,
+		BoxId:    0,
 	}
 }
