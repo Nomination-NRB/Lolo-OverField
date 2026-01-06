@@ -42,7 +42,7 @@ func (g *Game) PlayerBriefInfo(b *db.OFGameBasic) *proto.PlayerBriefInfo {
 		IsOnline:        g.GetUser(b.UserId) != nil,
 		Sign:            b.Sign,
 		GuildName:       "",
-		CharacterId:     0,
+		CharacterId:     0, // 看板娘
 		CreateTime:      uint32(b.CreatedAt.Unix()),
 		PlayerLabel:     0,
 		GardenLikeNum:   0,
