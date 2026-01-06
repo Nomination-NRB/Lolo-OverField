@@ -218,7 +218,7 @@ func (c *ChannelInfo) addPlayer(scenePlayer *ScenePlayer) bool {
 
 func (c *ChannelInfo) delPlayer(scenePlayer *ScenePlayer) {
 	list := c.getAllPlayer()
-	if _, ok := list[scenePlayer.UserId]; ok {
+	if _, ok := list[scenePlayer.UserId]; ok { // 移除玩家
 		delete(list, scenePlayer.UserId)
 	}
 	c.serverSceneSync(&ServerSceneSyncCtx{
@@ -226,8 +226,11 @@ func (c *ChannelInfo) delPlayer(scenePlayer *ScenePlayer) {
 		ActionType:  proto.SceneActionType_SceneActionType_Leave,
 	})
 
-	if scenePlayer.UserId != c.ChannelId {
+	if scenePlayer.UserId != c.ChannelId { // 移除家具
 		c.sceneGardenData.RemoveFurniture(scenePlayer.Player, c.ChannelId, 0, false)
+	}
+	if _, ok := c.chaiInfoMap[scenePlayer.UserId]; ok { // 移除交互
+		delete(c.chaiInfoMap, scenePlayer.UserId)
 	}
 	c.chatChannel.delUserChan <- scenePlayer.UserId
 }
