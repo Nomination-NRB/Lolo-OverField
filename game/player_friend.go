@@ -172,13 +172,30 @@ func (g *Game) OtherPlayerInfo(s *model.Player, msg *alg.GameMsg) {
 }
 
 func (g *Game) FriendSearch(s *model.Player, msg *alg.GameMsg) {
-	//req := msg.Body.(*proto.FriendSearchReq)
-	//rsp := &proto.FriendSearchRsp{
-	//	Status:       proto.StatusCode_StatusCode_Ok,
-	//	Data:         nil,
-	//	FriendStatus: 0,
-	//}
-	//defer g.send(s, msg.PacketId, rsp)
+	req := msg.Body.(*proto.FriendSearchReq)
+	rsp := &proto.FriendSearchRsp{
+		Status:       proto.StatusCode_StatusCode_Ok,
+		Data:         nil,
+		FriendStatus: 0,
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	userId := alg.S2U32(req.SearchArgs)
+	friend, err := db.GetFiend(s.UserId, userId)
+	if err != nil {
+		rsp.Status = proto.StatusCode_StatusCode_FriendNotExist
+		log.Game.Warnf("UserId:%v db.GetFiend:%v", s.UserId, err)
+		return
+	}
+	basic, err := db.GetGameBasic(userId)
+	if err != nil {
+		rsp.Status = proto.StatusCode_StatusCode_FriendNotExist
+		log.Game.Warnf("GetGameBasic:%v func db.GetGameBasic:%v", userId, err)
+		return
+	}
+	rsp.Data = g.PlayerBriefInfo(basic)
+	if friend != nil {
+		rsp.FriendStatus = friend.Status
+	}
 }
 
 func (g *Game) WishListByFriendId(s *model.Player, msg *alg.GameMsg) {
