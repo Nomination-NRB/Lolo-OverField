@@ -327,6 +327,13 @@ func (g *Game) UpdateCharacterAppearance(s *model.Player, msg *alg.GameMsg) {
 		VehicleInstanceId:          req.Appearance.VehicleInstanceId,
 	}
 	rsp.Appearance = characterInfo.GetPbCharacterAppearance()
+
+	// 更新基础信息
+	if req.CharId == s.GetTeamModel().GetTeamInfo().Char1 {
+		if err := s.UpBasicByTeam(); err != nil {
+			log.Game.Errorf("UserId:%v UpBasicByTeam err:%s", s.UserId, err.Error())
+		}
+	}
 }
 
 func (g *Game) CharacterGatherWeaponUpdate(s *model.Player, msg *alg.GameMsg) {

@@ -34,3 +34,14 @@ func GetPlayerAppearance(userId uint32) *proto.PlayerAppearance {
 		Pendant:     basic.Pendant,
 	}
 }
+
+func (s *Player) UpBasicByTeam() error {
+	characterId := s.GetTeamModel().GetTeamInfo().Char1
+	badgeId := s.GetCharacterModel().GetCharacterInfo(characterId).GetPbCharacterAppearance().GetBadge()
+	err := db.UpGameBasic(s.UserId, func(basic *db.OFGameBasic) bool {
+		basic.CharacterId = characterId
+		basic.TeamLeaderBadge = badgeId
+		return true
+	})
+	return err
+}

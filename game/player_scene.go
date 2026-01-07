@@ -1,6 +1,7 @@
 package game
 
 import (
+	"gucooing/lolo/gdconf"
 	"time"
 
 	"gucooing/lolo/game/model"
@@ -86,6 +87,33 @@ func (g *Game) ChangeSceneChannel(s *model.Player, msg *alg.GameMsg) {
 		TargetPlayerId:    0,
 	}
 	defer g.send(s, msg.PacketId, rsp)
+
+	pos := req.Pos
+	rot := req.Rot
+	sceneId := req.SceneId
+	channelId := req.ChannelLabel
+
+	if req.TargetPlayerLabel != 0 { // 传送到好友
+		targetPlayer := g.getWordInfo().getScenePlayerByUserId(req.TargetPlayerLabel)
+		if targetPlayer == nil {
+			rsp.Status = proto.StatusCode_StatusCode_PlayerNotInChannel
+			return
+		}
+		pos = model.CopyVector3(targetPlayer.Pos)
+		rot = model.CopyVector3(targetPlayer.Rot)
+		sceneId = targetPlayer.SceneId
+		channelId = targetPlayer.ChannelId
+	} else { // 切换场景
+		if pos == nil && rot == nil {
+			sceneConf := gdconf.GetSceneInfo(sceneId)
+			if sceneConf != nil {
+				posr, rotr := gdconf.GetSceneInfoRandomBorn(sceneConf)
+				pos = gdconf.ConfigVector3ToProtoVector3(posr)
+				rot = gdconf.ConfigVector4ToProtoVector3(rotr)
+			}
+		}
+	}
+
 	scenePlayer := g.getWordInfo().getScenePlayer(s)
 	if scenePlayer == nil ||
 		scenePlayer.channelInfo == nil {
@@ -95,17 +123,17 @@ func (g *Game) ChangeSceneChannel(s *model.Player, msg *alg.GameMsg) {
 	}
 	oldChannelInfo := scenePlayer.channelInfo
 
-	alg.NoZero(&scenePlayer.SceneId, req.SceneId)
-	alg.NoZero(&scenePlayer.ChannelId, req.ChannelLabel)
-	alg.NoZero(&scenePlayer.Pos, req.Pos)
-	alg.NoZero(&scenePlayer.Rot, req.Rot)
+	alg.NoZero(&scenePlayer.SceneId, sceneId)
+	alg.NoZero(&scenePlayer.ChannelId, channelId)
+	alg.NoZero(&scenePlayer.Pos, pos)
+	alg.NoZero(&scenePlayer.Rot, rot)
 
 	newChannelInfo, err := g.getWordInfo().getChannel(scenePlayer.SceneId, scenePlayer.ChannelId)
 	if err != nil {
 		scenePlayer.SceneId = oldChannelInfo.SceneInfo.SceneId
 		scenePlayer.ChannelId = oldChannelInfo.ChannelId
 		rsp.Status = proto.StatusCode_StatusCode_SceneChannelNotExist
-		log.Game.Warnf("场景:%v没有目标房间:%v err:%s", req.SceneId, req.ChannelLabel, err)
+		log.Game.Warnf("场景:%v没有目标房间:%v err:%s", scenePlayer.SceneId, scenePlayer.ChannelId, err)
 		return
 	}
 	if oldChannelInfo != newChannelInfo {

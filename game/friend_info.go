@@ -36,19 +36,19 @@ func (g *Game) PlayerBriefInfo(b *db.OFGameBasic) *proto.PlayerBriefInfo {
 		Level:           b.Level,
 		Head:            b.Head,
 		LastLoginTime:   b.LastLoginTime,
-		TeamLeaderBadge: 0,
+		TeamLeaderBadge: b.TeamLeaderBadge, // 队伍 队长徽章
 		Sex:             b.Sex,
 		PhoneBackground: b.PhoneBackground,
 		IsOnline:        g.GetUser(b.UserId) != nil,
 		Sign:            b.Sign,
 		GuildName:       "",
-		CharacterId:     0, // 看板娘
+		CharacterId:     b.CharacterId, // 队长id
 		CreateTime:      uint32(b.CreatedAt.Unix()),
-		PlayerLabel:     0,
+		PlayerLabel:     b.UserId,
 		GardenLikeNum:   0,
-		AccountType:     0,
+		AccountType:     int32(b.AccountType), // 登录的账号类型 - 渠道
 		Birthday:        b.Birthday,
-		HideValue:       0,
+		HideValue:       b.HideValue,
 		AvatarFrame:     b.AvatarFrame,
 	}
 }

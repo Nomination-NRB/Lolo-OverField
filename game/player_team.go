@@ -3,6 +3,7 @@ package game
 import (
 	"gucooing/lolo/game/model"
 	"gucooing/lolo/pkg/alg"
+	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/proto"
 )
 
@@ -26,4 +27,8 @@ func (g *Game) UpdateTeam(s *model.Player, msg *alg.GameMsg) {
 	upChar(&teamInfo.Char1, req.Char1)
 	upChar(&teamInfo.Char2, req.Char2)
 	upChar(&teamInfo.Char3, req.Char3)
+	// 更新基础信息
+	if err := s.UpBasicByTeam(); err != nil {
+		log.Game.Errorf("UserId:%v UpBasicByTeam err:%s", s.UserId, err.Error())
+	}
 }

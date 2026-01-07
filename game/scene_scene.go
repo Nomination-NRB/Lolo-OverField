@@ -91,6 +91,15 @@ func (w *WordInfo) getScenePlayer(player *model.Player) *ScenePlayer {
 	return value.(*ScenePlayer)
 }
 
+func (w *WordInfo) getScenePlayerByUserId(userId uint32) *ScenePlayer {
+	value, ok := w.allScenePlayer.Load(userId)
+	if !ok {
+		// 场景中没有该玩家
+		return nil
+	}
+	return value.(*ScenePlayer)
+}
+
 func (w *WordInfo) getChannel(sceneId, channelId uint32) (*ChannelInfo, error) {
 	sceneInfo, err := w.getSceneInfo(sceneId)
 	if err != nil {

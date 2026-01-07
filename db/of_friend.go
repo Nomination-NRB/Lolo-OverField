@@ -1,6 +1,8 @@
 package db
 
 import (
+	"errors"
+	"gucooing/lolo/protocol/proto"
 	"time"
 
 	"gorm.io/gorm"
@@ -13,78 +15,93 @@ type OFFriendInfo struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }
 
-// 好友申请表
-type OFFriendRequest struct {
-	SenderUserId  uint32    `gorm:"primary_key;not null;uniqueIndex:request"` // 申请者
-	RequestUserId uint32    `gorm:"primary_key;not null;uniqueIndex:request"` // 被申请者
-	CreatedAt     time.Time `gorm:"autoCreateTime"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+// 好友关系表
+type OFFriend struct {
+	CreatedAt        time.Time          `gorm:"autoCreateTime"`
+	UpdatedAt        time.Time          `gorm:"autoUpdateTime"`
+	UserId           uint32             `gorm:"primary_key;not null;uniqueIndex:friend"` // 用户id
+	FriendId         uint32             `gorm:"primary_key;not null;uniqueIndex:friend"` // 好友id / 被申请好友的id
+	Status           proto.FriendStatus `gorm:"default:0"`                               // 好友关系
+	Alias            string             `gorm:"default:''"`                              // 别名
+	FriendTag        uint32             `gorm:"default:0"`                               // 好友标签
+	FriendIntimacy   uint32             `gorm:"default:0"`                               // 亲密度
+	FriendBackground uint32             `gorm:"default:0"`                               // 好友背景
 }
 
 // 获取向目标玩家申请好友列表
-func GetAllFriendApply(userId uint32) ([]*OFFriendRequest, error) {
-	list := make([]*OFFriendRequest, 0)
-	err := db.Where("request_user_id = ?", userId).Find(&list).Error
+func GetAllFriendApply(userId uint32) ([]*OFFriend, error) {
+	list := make([]*OFFriend, 0)
+	err := db.Where("friend_id = ? AND status = ?", userId, proto.FriendStatus_FriendStatus_Apply).Find(&list).Error
 	return list, err
 }
 
 // 获取目标玩家申请了那些好友列表
-func GetAllFriendSenderApply(userId uint32) ([]*OFFriendRequest, error) {
-	list := make([]*OFFriendRequest, 0)
-	err := db.Where("sender_user_id = ?", userId).Find(&list).Error
+func GetAllFriendSenderApply(userId uint32) ([]*OFFriend, error) {
+	list := make([]*OFFriend, 0)
+	err := db.Where("user_id = ? AND status = ?", userId, proto.FriendStatus_FriendStatus_Apply).Find(&list).Error
 	return list, err
 }
 
-// 判断是否已有请求
-func GetIsFriendApply(userId, senderId uint32) (int64, error) {
+// 获取玩家对应好友关系玩家列表
+func GetAllFriendByStatus(userId uint32, status proto.FriendStatus) ([]*OFFriend, error) {
+	list := make([]*OFFriend, 0)
+	err := db.Where("user_id = ? AND status = ?", userId, status).Find(&list).Error
+	return list, err
+}
+
+/*
+判断是否已有好友关系
+requestUserId - 发起人
+recipientId - 接收人
+*/
+func GetIsFriendApply(requestUserId, recipientId uint32) (int64, error) {
 	var count int64
-	err := db.Where("sender_user_id = ? AND request_user_id = ?", senderId, userId).Count(&count).Error
+	err := db.Model(&OFFriend{}).Where("user_id = ? AND friend_id = ?", requestUserId, recipientId).Count(&count).Error
 	return count, err
 }
 
-func CreateFriendApply(senderId, requestUserId uint32) error {
-	return db.Create(&OFFriendRequest{
-		SenderUserId:  senderId,
-		RequestUserId: requestUserId,
+/*
+创建好友申请
+requestUserId - 发起人
+recipientId - 接收人
+*/
+func CreateFriendApply(requestUserId, recipientId uint32) error {
+	return db.Create(&OFFriend{
+		UserId:   requestUserId,
+		FriendId: recipientId,
+		Status:   proto.FriendStatus_FriendStatus_Apply,
 	}).Error
 }
 
-// 好友关系表
-type OFFriend struct {
-	UserId           uint32    `gorm:"primary_key;not null;uniqueIndex:friend"` // 用户id
-	FriendId         uint32    `gorm:"primary_key;not null;uniqueIndex:friend"` // 用户id的好友id
-	CreatedAt        time.Time `gorm:"autoCreateTime"`
-	UpdatedAt        time.Time `gorm:"autoUpdateTime"`
-	Alias            string    `gorm:"default:''"` // 别名
-	FriendTag        uint32    `gorm:"default:0"`  // 好友标签
-	FriendIntimacy   uint32    `gorm:"default:0"`  // 亲密度
-	FriendBackground uint32    `gorm:"default:0"`  // 好友背景
-}
-
-// 被申请玩家处理好友申请
-func FriendHandleApply(userId, senderId uint32, isAgree bool) error {
+/*
+被申请玩家处理好友申请
+requestUserId - 发起人
+recipientId - 接收人
+*/
+func FriendHandleApply(recipientId, requestUserId uint32, isAgree bool) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 获取是否存在该申请
-		request := &OFFriendRequest{}
+		request := &OFFriend{}
 		err := tx.
-			Where("sender_user_id = ? AND request_user_id = ?", senderId, userId).
+			Where("user_id = ? AND friend_id = ? AND status = ?", requestUserId, recipientId, proto.FriendStatus_FriendStatus_Apply).
 			First(&request).Error
 		if err != nil {
 			return err
 		}
 		if isAgree {
 			// 同意好友
-			tx.Create(&OFFriend{
-				UserId:   request.RequestUserId,
-				FriendId: request.SenderUserId,
-			})
-			tx.Create(&OFFriend{
-				UserId:   request.SenderUserId,
-				FriendId: request.RequestUserId,
-			})
-			if tx.Error != nil {
-				return tx.Error
+			request.Status = proto.FriendStatus_FriendStatus_Friend
+			if err := tx.Save(request).Error; err != nil {
+				return err
 			}
+			if err := tx.Create(&OFFriend{
+				UserId:   request.FriendId,
+				FriendId: request.UserId,
+				Status:   proto.FriendStatus_FriendStatus_Friend,
+			}).Error; err != nil {
+				return err
+			}
+			return nil
 		}
 		return tx.Delete(request).Error
 	})
@@ -93,15 +110,43 @@ func FriendHandleApply(userId, senderId uint32, isAgree bool) error {
 // 获取目标玩家的全部好友
 func GetAllFiend(userId uint32) ([]*OFFriend, error) {
 	list := make([]*OFFriend, 0)
-	err := db.Where("user_id = ?", userId).Find(&list).Error
+	err := db.Where("user_id = ? AND status = ?", userId, proto.FriendStatus_FriendStatus_Friend).Find(&list).Error
 	return list, err
 }
 
 // 判断是否存在好友关系
 func GetIsFiend(userId, friendId uint32) (int64, error) {
 	var count int64
-	err := db.Where("user_id = ? AND friend_id = ?", userId, friendId).Count(&count).Error
+	err := db.Model(&OFFriend{}).
+		Where("user_id = ? AND friend_id = ? AND status = ?", userId, friendId, proto.FriendStatus_FriendStatus_Friend).
+		Count(&count).Error
 	return count, err
+}
+
+// 尝试获取可能存在的好友关系
+func GetFiend(userId, friendId uint32) (*OFFriend, error) {
+	off := &OFFriend{}
+	err := db.Where("user_id = ? AND friend_id = ? AND status = ?", userId, friendId, proto.FriendStatus_FriendStatus_Friend).
+		First(&off).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return off, err
+}
+
+// 单向更新好友关系
+func UpOFFriend(userId, friendId uint32, fx func(off *OFFriend) bool) error {
+	off, err := GetFiend(userId, friendId)
+	if err != nil {
+		return err
+	}
+	if !fx(off) {
+		return nil
+	}
+	if err = db.Save(off).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 // 删除好友关系
@@ -145,6 +190,9 @@ func CreateFriendBlack(userId, blackId uint32, isRemove bool) error {
 				UserId:   blackId,
 				FriendId: userId,
 			})
+		} else {
+			tx.Where("user_id = ? AND friend_id = ?", userId, blackId).
+				Update("status", proto.FriendStatus_FriendStatus_Black)
 		}
 		return tx.Error
 	})
@@ -155,4 +203,15 @@ func GetAllFriendBlack(userId uint32) ([]*OFFriendBlack, error) {
 	list := make([]*OFFriendBlack, 0)
 	err := db.Where("user_id = ?", userId).Find(&list).Error
 	return list, err
+}
+
+/*
+判断玩家是否被目标玩家拉黑
+userId - 玩家
+friendId - 目标玩家
+*/
+func IsUserBlack(userId uint32, blackId uint32) (bool, error) {
+	var count int64
+	err := db.Model(&OFFriendBlack{}).Where("user_id = ? AND black_id = ?", userId, blackId).Count(&count).Error
+	return count > 0, err
 }
