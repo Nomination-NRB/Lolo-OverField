@@ -134,6 +134,21 @@ func GetFiend(userId, friendId uint32) (*OFFriend, error) {
 	return off, err
 }
 
+// 单向更新好友关系
+func UpOFFriend(userId, friendId uint32, fx func(off *OFFriend) bool) error {
+	off, err := GetFiend(userId, friendId)
+	if err != nil {
+		return err
+	}
+	if !fx(off) {
+		return nil
+	}
+	if err = db.Save(off).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // 删除好友关系
 func DelFiend(userId, friendId uint32) error {
 	return db.Transaction(func(tx *gorm.DB) error {

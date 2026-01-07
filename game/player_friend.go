@@ -198,6 +198,35 @@ func (g *Game) FriendSearch(s *model.Player, msg *alg.GameMsg) {
 	}
 }
 
+func (g *Game) SetFriendExtInfo(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.SetFriendExtInfoReq)
+	rsp := &proto.SetFriendExtInfoRsp{
+		Status:   proto.StatusCode_StatusCode_Ok,
+		PlayerId: req.PlayerId,
+		Data:     make([]*proto.SetFriendExtInfoData, 0),
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	err := db.UpOFFriend(s.UserId, req.PlayerId, func(off *db.OFFriend) bool {
+		for _, set := range req.Data {
+			switch set.Type {
+			case 1: // 修改备注
+				off.Alias = set.Value
+			default:
+				log.Game.Warnf("请将本行日志提交给开发人员 SetFriendExtInfo Type:%v", set.Type)
+				continue
+			}
+			alg.AddList(&rsp.Data, set)
+		}
+		return true
+	})
+	if err != nil {
+		rsp.Status = proto.StatusCode_StatusCode_FriendDaysNotEnough
+		log.Game.Warnf("UserId:%v db.UpOFFriend:%v", s.UserId, err)
+		return
+	}
+
+}
+
 func (g *Game) WishListByFriendId(s *model.Player, msg *alg.GameMsg) {
 	// req := msg.Body.(*proto.WishListByFriendIdReq)
 	rsp := &proto.WishListByFriendIdRsp{

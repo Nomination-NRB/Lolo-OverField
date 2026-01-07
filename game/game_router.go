@@ -71,13 +71,14 @@ func (g *Game) newRouter() {
 		cmd.GetArchiveInfoReq: g.GetArchiveInfo, // 获取记录的信息
 		cmd.SetArchiveInfoReq: g.SetArchiveInfo, // 设置信息
 		// 好友
-		cmd.FriendReq:          g.Friend,          // 获取好友聚合请求
-		cmd.FriendAddReq:       g.FriendAdd,       // 添加好友请求
-		cmd.FriendHandleReq:    g.FriendHandle,    // 处理好友申请
-		cmd.FriendDelReq:       g.FriendDel,       // 删除好友关系
-		cmd.FriendBlackReq:     g.FriendBlack,     // 拉黑玩家
-		cmd.OtherPlayerInfoReq: g.OtherPlayerInfo, // 获取其他玩家信息
-		cmd.FriendSearchReq:    g.FriendSearch,    // 搜索玩家
+		cmd.FriendReq:           g.Friend,           // 获取好友聚合请求
+		cmd.FriendAddReq:        g.FriendAdd,        // 添加好友请求
+		cmd.FriendHandleReq:     g.FriendHandle,     // 处理好友申请
+		cmd.FriendDelReq:        g.FriendDel,        // 删除好友关系
+		cmd.FriendBlackReq:      g.FriendBlack,      // 拉黑玩家
+		cmd.OtherPlayerInfoReq:  g.OtherPlayerInfo,  // 获取其他玩家信息
+		cmd.FriendSearchReq:     g.FriendSearch,     // 搜索玩家
+		cmd.SetFriendExtInfoReq: g.SetFriendExtInfo, // 设置好友扩展信息
 		// 聊天
 		cmd.PrivateChatMsgRecordReq: g.PrivateChatMsgRecord, // 获取私聊聊天记录
 		cmd.SendChatMsgReq:          g.SendChatMsg,          // 发送聊天消息
