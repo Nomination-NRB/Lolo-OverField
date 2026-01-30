@@ -49,7 +49,10 @@ func (g *Game) Collecting(s *model.Player, msg *alg.GameMsg) {
 		rsp.Status = proto.StatusCode_StatusCode_BadReq
 		return
 	}
-	info.ItemMap[req.ItemId] = &model.PBCollectionRewardData{ItemId: req.ItemId}
+	info.ItemMap[req.ItemId] = &model.PBCollectionRewardData{
+		ItemId: req.ItemId,
+		Status: proto.RewardStatus_RewardStatus_Reward,
+	}
 	alg.AddList(&rsp.Collections, info.CollectionData())
 	// 获取奖励
 	for _, reward := range gdconf.GetCollectionReward(conf) {
@@ -60,6 +63,45 @@ func (g *Game) Collecting(s *model.Player, msg *alg.GameMsg) {
 			).
 				AddItemDetail())
 	}
+}
+
+func (g *Game) CollectionReward(s *model.Player, msg *alg.GameMsg) {
+	req := msg.Body.(*proto.CollectionRewardReq)
+	rsp := &proto.CollectionRewardRsp{
+		Status:               proto.StatusCode_StatusCode_Ok,
+		CollectionRewardData: nil,
+		Items:                make([]*proto.ItemDetail, 0),
+	}
+	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	conf := gdconf.GetCollectionItem(req.ItemId)
+	if conf == nil || scenePlayer == nil {
+		rsp.Status = proto.StatusCode_StatusCode_BadReq
+		return
+	}
+	info := s.GetSceneModel().GetSceneInfo(scenePlayer.SceneId).
+		GetCollectionInfo(proto.ECollectionType(conf.NewCollectionType))
+	if info == nil {
+		rsp.Status = proto.StatusCode_StatusCode_BadReq
+		return
+	}
+	itemInfo, ok := info.ItemMap[req.ItemId]
+	if !ok ||
+		itemInfo.Status != proto.RewardStatus_RewardStatus_NotReward {
+		rsp.Status = proto.StatusCode_StatusCode_BadReq
+		return
+	}
+	// 获取奖励
+	for _, reward := range gdconf.GetCollectionReward(conf) {
+		alg.AddList(&rsp.Items,
+			s.AddAllTypeItem(
+				uint32(reward.ItemID),
+				int64(rand.Int32N(reward.ItemMaxCount)+reward.ItemMinCount),
+			).
+				AddItemDetail())
+	}
+	itemInfo.Status = proto.RewardStatus_RewardStatus_Reward
+	rsp.CollectionRewardData = itemInfo.PBCollectionRewardData()
 }
 
 func (g *Game) Gather(s *model.Player, msg *alg.GameMsg) {
@@ -126,5 +168,7 @@ func (g *Game) CollectMoon(s *model.Player, msg *alg.GameMsg) {
 	}
 	alg.AddSlice(&info.CollectedMoonIds, req.MoonId)
 	// 获取奖励
-	alg.AddList(&rsp.Rewards, s.AddAllTypeItem(124, 5).AddItemDetail())
+	item := s.AddAllTypeItem(124, 5)
+	g.PackNoticeByItems(s, []*proto.ItemDetail{item.ItemDetail()})
+	alg.AddList(&rsp.Rewards, item.AddItemDetail())
 }

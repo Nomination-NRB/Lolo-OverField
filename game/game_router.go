@@ -110,6 +110,7 @@ func (g *Game) newRouter() {
 		// 收集
 		cmd.GetCollectItemIdsReq:  g.GetCollectItemIds,  // 获取收集物品列表
 		cmd.CollectingReq:         g.Collecting,         // 收集请求
+		cmd.CollectionRewardReq:   g.CollectionReward,   // 领取收集奖励
 		cmd.GatherReq:             g.Gather,             // 收集请求
 		cmd.TreasureBoxOpenReq:    g.TreasureBoxOpen,    // 打开宝箱
 		cmd.GetCollectMoonInfoReq: g.GetCollectMoonInfo, // 获取星云树信息

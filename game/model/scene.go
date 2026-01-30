@@ -105,11 +105,13 @@ func (c *CollectionInfo) CollectionData() *proto.CollectionData {
 }
 
 type PBCollectionRewardData struct {
-	ItemId uint32 `json:"itemId,omitempty"`
+	ItemId uint32             `json:"itemId,omitempty"`
+	Status proto.RewardStatus `json:"status,omitempty"`
 }
 
 func (p *PBCollectionRewardData) PBCollectionRewardData() *proto.PBCollectionRewardData {
 	return &proto.PBCollectionRewardData{
 		ItemId: p.ItemId,
+		Status: p.Status,
 	}
 }
