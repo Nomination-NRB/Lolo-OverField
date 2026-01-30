@@ -2,6 +2,7 @@ package model
 
 import (
 	"gucooing/lolo/protocol/proto"
+	"time"
 )
 
 func CopyVector3(rot *proto.Vector3) *proto.Vector3 {
@@ -60,21 +61,33 @@ func (si *SceneInfo) GetCollectionInfo(t proto.ECollectionType) *CollectionInfo 
 	info, ok := list[t]
 	if !ok {
 		info = &CollectionInfo{
-			Type:    uint32(t),
-			ItemMap: make(map[uint32]*PBCollectionRewardData),
-			Level:   0,
-			Exp:     0,
+			Type:             uint32(t),
+			ItemMap:          make(map[uint32]*PBCollectionRewardData),
+			Level:            0,
+			Exp:              0,
+			LastRefreshTime:  time.Now(),
+			CollectedMoonIds: make([]uint32, 0),
 		}
 		list[t] = info
 	}
+	if time.Now().Add(-4 * time.Minute).After(info.LastRefreshTime) {
+		switch t {
+		case proto.ECollectionType_ECollectionType_CollectMoonPiece:
+			info.LastRefreshTime = time.Now()
+			info.CollectedMoonIds = make([]uint32, 0)
+		}
+	}
+
 	return info
 }
 
 type CollectionInfo struct {
-	Type    uint32                             `json:"type,omitempty"`
-	ItemMap map[uint32]*PBCollectionRewardData `json:"itemMap,omitempty"`
-	Level   uint32                             `json:"level,omitempty"`
-	Exp     uint32                             `json:"exp,omitempty"`
+	Type             uint32                             `json:"type,omitempty"`
+	ItemMap          map[uint32]*PBCollectionRewardData `json:"itemMap,omitempty"`
+	Level            uint32                             `json:"level,omitempty"`
+	Exp              uint32                             `json:"exp,omitempty"`
+	LastRefreshTime  time.Time                          `json:"lastRefreshTime,omitempty"`  // 上次刷新时间
+	CollectedMoonIds []uint32                           `json:"collectedMoonIds,omitempty"` // 收集的月亮
 }
 
 func (c *CollectionInfo) CollectionData() *proto.CollectionData {

@@ -6,6 +6,7 @@ import (
 	"gucooing/lolo/pkg/alg"
 	"gucooing/lolo/protocol/proto"
 	"math/rand/v2"
+	"slices"
 )
 
 func (g *Game) GetCollectItemIds(s *model.Player, msg *alg.GameMsg) {
@@ -93,6 +94,13 @@ func (g *Game) GetCollectMoonInfo(s *model.Player, msg *alg.GameMsg) {
 		EmotionMoons:     make([]*proto.EmotionMoonInfo, 0),
 	}
 	defer g.send(s, msg.PacketId, rsp)
+	info := s.GetSceneModel().GetSceneInfo(req.SceneId).
+		GetCollectionInfo(proto.ECollectionType_ECollectionType_CollectMoonPiece)
+	if info == nil {
+		rsp.Status = proto.StatusCode_StatusCode_BadReq
+		return
+	}
+	rsp.CollectedMoonIds = info.CollectedMoonIds
 }
 
 func (g *Game) CollectMoon(s *model.Player, msg *alg.GameMsg) {
@@ -103,4 +111,20 @@ func (g *Game) CollectMoon(s *model.Player, msg *alg.GameMsg) {
 		Rewards: make([]*proto.ItemDetail, 0),
 	}
 	defer g.send(s, msg.PacketId, rsp)
+	scenePlayer := g.getWordInfo().getScenePlayer(s)
+	conf := gdconf.GetCollectionItem(req.MoonId)
+	if conf == nil || scenePlayer == nil {
+		rsp.Status = proto.StatusCode_StatusCode_BadReq
+		return
+	}
+	info := s.GetSceneModel().GetSceneInfo(scenePlayer.SceneId).
+		GetCollectionInfo(proto.ECollectionType(conf.NewCollectionType))
+	// 判断
+	if slices.Contains(info.CollectedMoonIds, req.MoonId) {
+		rsp.Status = proto.StatusCode_StatusCode_BadReq
+		return
+	}
+	alg.AddSlice(&info.CollectedMoonIds, req.MoonId)
+	// 获取奖励
+	alg.AddList(&rsp.Rewards, s.AddAllTypeItem(124, 5).AddItemDetail())
 }

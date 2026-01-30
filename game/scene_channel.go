@@ -517,6 +517,9 @@ func (c *ChannelInfo) GetPbSceneData(scenePlayer *ScenePlayer) (info *proto.Scen
 	}
 	// 添加收集情况
 	for _, collectInfo := range scenePlayer.GetSceneModel().GetSceneInfo(c.SceneInfo.SceneId).Collections {
+		if len(collectInfo.ItemMap) == 0 {
+			continue
+		}
 		alg.AddList(&info.Collections, collectInfo.CollectionData())
 	}
 	// 添加场景中的玩家

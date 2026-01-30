@@ -32,9 +32,10 @@ func (g *GameConfig) loadSceneConfig() {
 			TreasureInfos: make(map[uint32]*config.CollectionTreasureInfo),
 		}
 		info.SceneMap[scene.ID] = sceneInfo
-		for _, v := range scene.GetCollectionTreasureInfos() {
-
-		}
+		// 宝箱信息
+		//for _, v := range scene.GetCollectionTreasureInfos() {
+		//
+		//}
 	}
 }
 

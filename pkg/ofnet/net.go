@@ -2,6 +2,7 @@ package ofnet
 
 import (
 	"errors"
+	"github.com/gookit/slog"
 	"net"
 	"sync/atomic"
 
@@ -9,7 +10,6 @@ import (
 	pb "google.golang.org/protobuf/proto"
 
 	"gucooing/lolo/pkg/alg"
-	"gucooing/lolo/pkg/log"
 	"gucooing/lolo/protocol/cmd"
 	"gucooing/lolo/protocol/proto"
 )
@@ -22,9 +22,10 @@ type Net interface {
 	Close() error
 	SetBlackPackId(packIdList map[uint32]struct{})
 	SetLogMsg(logMsg bool)
+	SetFileLog(log *slog.SugaredLogger)
 }
 
-func NewNet(network, addr string, log *log.SugaredLogger) (Net, error) {
+func NewNet(network, addr string, log *slog.SugaredLogger) (Net, error) {
 	log.Infof("协议:%s,启动在%s 上", network, addr)
 	switch network {
 	case "tcp":
@@ -34,11 +35,16 @@ func NewNet(network, addr string, log *log.SugaredLogger) (Net, error) {
 }
 
 type netBase struct {
-	log         *log.SugaredLogger
+	log         *slog.SugaredLogger
+	fileLog     *slog.SugaredLogger
 	logMsg      bool
 	blackPackId map[uint32]struct{}
 	connNum     int64 // 连接数
 	maxConnNum  int64 // 最大连接数
+}
+
+func (c *netBase) SetFileLog(log *slog.SugaredLogger) {
+	c.fileLog = log
 }
 
 func (c *netBase) SetBlackPackId(packIdList map[uint32]struct{}) {
@@ -81,7 +87,7 @@ const (
 	ServerMsg
 )
 
-func (c *netBase) logMag(tp int, serverTag string, isLog bool, uid uint32, head *proto.PacketHead, payloadMsg pb.Message) {
+func (c *netBase) logMag(tp int, serverTag string, uid uint32, head *proto.PacketHead, payloadMsg pb.Message) {
 	var s string
 	switch tp {
 	case ClientMsg:
@@ -89,17 +95,13 @@ func (c *netBase) logMag(tp int, serverTag string, isLog bool, uid uint32, head 
 	case ServerMsg:
 		s = "s -> c"
 	}
-	if !isLog {
-		c.log.With.Debugf("%s[Server:%s][UID:%v][PacketId:%v][CMD:%s]Pack:%s",
-			s,
-			serverTag,
-			uid,
-			head.PacketId,
-			cmd.Get().GetCmdNameByCmdId(head.MsgId),
-			protojson.Format(payloadMsg))
+	if _, ok := c.blackPackId[head.MsgId]; ok {
 		return
 	}
-	c.log.Debugf("%s[Server:%s][UID:%v][PacketId:%v][CMD:%s]Pack:%s",
+	if c.fileLog == nil {
+		return
+	}
+	c.fileLog.Debugf("%s[Server:%s][UID:%v][PacketId:%v][CMD:%s]Pack:%s",
 		s,
 		serverTag,
 		uid,
