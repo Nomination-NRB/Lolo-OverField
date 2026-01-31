@@ -186,7 +186,12 @@ func (g *Game) PlayerMainData(s *model.Player, msg *alg.GameMsg) {
 }
 
 func (g *Game) loginGame(s *model.Player) {
+	// 资源点采集
+	g.GatherSceneLimitRecoveryNotice(s)
+	// 物品
 	g.AllPackNotice(s)
+	// 祝福树
+	g.BlessTreeNotice(s)
 	// 进入房间
 	g.getWordInfo().joinSceneChannel(s)
 	// 初始化聊天
@@ -401,15 +406,6 @@ func (g *Game) GenericGameB(s *model.Player, msg *alg.GameMsg) {
 		Status:       proto.StatusCode_StatusCode_Ok,
 		GenericMsgId: req.GenericMsgId,
 		Params:       make([]*proto.CommonParam, 0),
-	}
-	defer g.send(s, msg.PacketId, rsp)
-}
-
-func (g *Game) GetCollectItemIds(s *model.Player, msg *alg.GameMsg) {
-	// req := msg.Body.(*proto.GetCollectItemIdsReq)
-	rsp := &proto.GetCollectItemIdsRsp{
-		Status:  proto.StatusCode_StatusCode_Ok,
-		ItemIds: make([]uint32, 0),
 	}
 	defer g.send(s, msg.PacketId, rsp)
 }

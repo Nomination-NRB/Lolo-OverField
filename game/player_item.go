@@ -40,6 +40,15 @@ func (g *Game) AllPackNotice(s *model.Player) {
 	}
 }
 
+func (g *Game) PackNoticeByItems(s *model.Player, items []*proto.ItemDetail) {
+	g.send(s, 0, &proto.PackNotice{
+		Status:          proto.StatusCode_StatusCode_Ok,
+		Items:           items,
+		TempPackMaxSize: 0,
+		IsClearTempPack: false,
+	})
+}
+
 func (g *Game) GetWeapon(s *model.Player, msg *alg.GameMsg) {
 	req := msg.Body.(*proto.GetWeaponReq)
 	rsp := &proto.GetWeaponRsp{

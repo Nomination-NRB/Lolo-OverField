@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"github.com/gookit/slog"
 	"io"
 	"net"
 	"sync/atomic"
@@ -22,7 +23,7 @@ type tcpNet struct {
 	listener net.Listener
 }
 
-func newTcpNet(addr string, log *log.SugaredLogger) (*tcpNet, error) {
+func newTcpNet(addr string, log *slog.SugaredLogger) (*tcpNet, error) {
 	x := &tcpNet{
 		netBase: &netBase{
 			blackPackId: make(map[uint32]struct{}),
@@ -119,7 +120,6 @@ func (x *tcpConn) Read() (*alg.GameMsg, error) {
 		}
 		x.net.logMag(ClientMsg,
 			x.serverTag,
-			x.net.logPack(head.MsgId),
 			x.uid,
 			head,
 			protoObj)
@@ -160,7 +160,7 @@ func (x *tcpConn) Send(packetId uint32, protoObj pb.Message) {
 		bodyByte = snappy.Encode(nil, bodyByte)
 		head.Flag = 1
 	}
-	x.net.logMag(ServerMsg, x.serverTag, x.net.logPack(cmdId), x.uid, head, protoObj)
+	x.net.logMag(ServerMsg, x.serverTag, x.uid, head, protoObj)
 	head.BodyLen = uint32(len(bodyByte))
 	headBytes, err := pb.Marshal(head)
 	if err != nil {

@@ -8,34 +8,70 @@ import (
 )
 
 type SceneConfig struct {
-	SceneConfig    *config.SceneConfig
-	SceneBySceneId map[int32]*config.SceneInfo
+	all      *config.SceneConfig
+	SceneMap map[int32]*SceneInfo
+}
+
+type SceneInfo struct {
+	Info             *config.SceneInfo
+	TreasureInfos    map[uint32]*config.CollectionTreasureInfo
+	GatherPointIndex map[uint32]*config.GatherPointInfo
 }
 
 func (g *GameConfig) loadSceneConfig() {
 	info := &SceneConfig{
-		SceneConfig:    new(config.SceneConfig),
-		SceneBySceneId: make(map[int32]*config.SceneInfo),
+		all:      new(config.SceneConfig),
+		SceneMap: make(map[int32]*SceneInfo),
 	}
 	g.Config.SceneConfig = info
 	name := "ScenesConfigAsset.json"
-	ReadJson(g.configPath, name, &info.SceneConfig)
-	for _, v := range info.SceneConfig.GetScenes() {
-		info.SceneBySceneId[v.ID] = v
+	ReadJson(g.configPath, name, &info.all)
+
+	for _, scene := range info.all.GetScenes() {
+		sceneInfo := &SceneInfo{
+			Info:             scene,
+			TreasureInfos:    make(map[uint32]*config.CollectionTreasureInfo),
+			GatherPointIndex: make(map[uint32]*config.GatherPointInfo),
+		}
+		info.SceneMap[scene.ID] = sceneInfo
+		// 宝箱信息
+		//for _, v := range scene.GetCollectionTreasureInfos() {
+		//
+		//}
+		// 资源聚集信息
+		for _, v := range scene.GetGatherPointSetInfo() {
+			for _, set := range v.GetGatherPointSets() {
+				for _, point := range set.GetLifeGatherPointers() {
+					index := uint32(point.Index)
+					if _, ok := sceneInfo.GatherPointIndex[index]; ok {
+						panic("序号重复")
+					}
+					sceneInfo.GatherPointIndex[index] = point
+				}
+			}
+		}
 	}
 }
 
-func GetSceneInfo(sceneId uint32) *config.SceneInfo {
-	return cc.Config.SceneConfig.SceneBySceneId[int32(sceneId)]
+func GetSceneInfo(sceneId uint32) *SceneInfo {
+	info := cc.Config.SceneConfig.SceneMap[int32(sceneId)]
+	if info == nil {
+		return nil
+	}
+	return info
 }
 
-func GetSceneInfoRandomBorn(info *config.SceneInfo) (*config.Vector3, *config.Vector4) {
-	n := len(info.GetBorn())
+func (s *SceneInfo) GetSceneInfoRandomBorn() (*config.Vector3, *config.Vector4) {
+	n := len(s.Info.GetBorn())
 	if n == 0 {
 		return nil, nil
 	}
-	bornInfo := info.GetBorn()[rand.Intn(n)]
+	bornInfo := s.Info.GetBorn()[rand.Intn(n)]
 	return bornInfo.Position, bornInfo.Rotation
+}
+
+func (s *SceneInfo) GatherPointInfo(index uint32) *config.GatherPointInfo {
+	return s.GatherPointIndex[index]
 }
 
 func ConfigVector3ToProtoVector3(s *config.Vector3) *proto.Vector3 {

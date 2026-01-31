@@ -28,6 +28,7 @@ type Gateway struct {
 
 func NewGateway(router *gin.Engine) *Gateway {
 	log.NewGate()
+	log.NewPacket()
 	var err error
 	g := &Gateway{
 		cfg:          config.GetGateWay(),
@@ -41,6 +42,7 @@ func NewGateway(router *gin.Engine) *Gateway {
 	if err != nil {
 		panic(err)
 	}
+	g.net.SetFileLog(log.Packet)
 	g.net.SetBlackPackId(func() map[uint32]struct{} {
 		list := make(map[uint32]struct{})
 		for _, packString := range g.cfg.GetBlackCmd() {
