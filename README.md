@@ -15,13 +15,14 @@
 
 ## 使用方法
 1. 下载运行必要文件 [data](https://github.com/BanterSR/Lolo/tree/main/data)和[LoloResource](https://github.com/BanterSR/LoloResource) 分别保存到`data`文件夹和`Resource`文件夹中
-2. 用各种方法代理客户端http:`http://dsp-prod-of.inutan.com:18881/dispatch/region_info` 到服务器http （默认:`http://127.0.0.1:18881`）
+2. 用各种方法代理客户端http:`http://dsp-prod-of.inutan.com:18881/dispatch/region_info` 到服务器http （默认:`https://127.0.0.1:4430`）
 3. 使用`main/main.exe config gen`生成或补齐`config.json`修改`config.json`文件
 4. 启动Lolo和客户端
 
 ## 更多提示
-1. 如果你需要使用Lolo的SDK登录，请正则代理`http://sdkapi-of.inutan.com`到服务器http （默认:`http://127.0.0.1:18881`）需要注意的是此功能为实验性功能不保证可靠
+1. 如果你需要使用Lolo的SDK登录，请正则代理`http://sdkapi-of.inutan.com`到服务器http （默认:`https://127.0.0.1:4430`）需要注意的是此功能为实验性功能不保证可靠
 2. 更简单的的安卓代理方法(在模拟器中可能没有效果):[AnimeGamesProxy](https://github.com/Xuoos/AnimeGamesProxy/releases)
+3. 虽然默认支持tls但是依然推荐使用http,并通过反向代理使用https
 
 ## 已实现功能
 

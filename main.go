@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/contrib/gzip"
@@ -121,7 +122,7 @@ func newLolo() error {
 	// 初始化资源文件
 	gdconf.LoadGameConfig()
 	// 初始化gin
-	ginRouter, httpServer := NewGin()
+	ginRouter, httpServer, httpsServer := NewGin()
 	// 初始化sdk
 	s := sdk.New(ginRouter)
 	// 初始化gateWay
@@ -135,7 +136,7 @@ func newLolo() error {
 	log.App.Infof("Commit:%s", pkg.Commit)
 	go func() {
 		log.App.Info("Lolo Http Start!")
-		if err := RunGin(httpServer); err != nil {
+		if err := RunGin(httpServer, httpsServer); err != nil {
 			if !errors.Is(http.ErrServerClosed, err) {
 				log.App.Errorf("HTTP服务器错误:%s", err.Error())
 				done <- syscall.SIGTERM
@@ -188,7 +189,7 @@ func newLolo() error {
 	select {}
 }
 
-func NewGin() (*gin.Engine, *http.Server) {
+func NewGin() (*gin.Engine, *http.Server, *http.Server) {
 	log.App.Debug("初始化gin服务")
 	cfg := config.GetHttpNet()
 	gin.SetMode(gin.ReleaseMode)
@@ -201,14 +202,37 @@ func NewGin() (*gin.Engine, *http.Server) {
 	if config.GetMode() == config.ModeDev {
 		pprof.Register(router)
 	}
+	// http
 	addr := fmt.Sprintf("%s:%s", cfg.GetInnerIp(), cfg.GetInnerPort())
 	log.App.Infof("监听地址: http://%s", addr)
 	server := &http.Server{Addr: addr, Handler: router}
+	// https
+	var httpsServer *http.Server
+	if cfg.GetTls() {
+		httpsAddr := fmt.Sprintf("%s:%s", cfg.GetInnerIp(), cfg.GetHttpsPort())
+		log.App.Infof("监听地址: https://%s", httpsAddr)
+		httpsServer = &http.Server{Addr: httpsAddr, Handler: router, TLSConfig: &tls.Config{
+			InsecureSkipVerify: true}}
+	}
 	log.App.Debug("gin服务初始化成功")
-	return router, server
+	return router, server, httpsServer
 }
 
-func RunGin(server *http.Server) error {
-	log.App.Debug("启动http服务")
-	return server.ListenAndServe()
+func RunGin(httpServer *http.Server, httpsServer *http.Server) error {
+	log.App.Debug("启动HTTP/HTTPS服务")
+
+	if httpsServer != nil {
+		cfg := config.GetHttpNet()
+		certFile := cfg.GetCertFile()
+		keyFile := cfg.GetKeyFile()
+
+		go func() {
+			if err := httpsServer.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				log.App.Fatalf("HTTPS服务启动失败: %v", err)
+			}
+		}()
+	}
+
+	log.App.Infof("启动HTTP服务在: %s", httpServer.Addr)
+	return httpServer.ListenAndServe()
 }
