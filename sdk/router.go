@@ -58,6 +58,7 @@ func (s *Server) Router() {
 			user.POST("/loginByName", s.loginByNameV2)
 			user.POST("/autoLogin", s.autoLoginV2)
 		}
+		v2.POST("/users/checkLogin", s.checkLoginV2)
 	}
 }
 

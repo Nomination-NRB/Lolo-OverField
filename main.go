@@ -227,6 +227,7 @@ func RunGin(httpServer *http.Server, httpsServer *http.Server) error {
 		keyFile := cfg.GetKeyFile()
 
 		go func() {
+			log.App.Infof("启动HTTPS服务在: %s", httpsServer.Addr)
 			if err := httpsServer.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 				log.App.Fatalf("HTTPS服务启动失败: %v", err)
 			}

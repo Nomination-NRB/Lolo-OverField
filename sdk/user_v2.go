@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"gucooing/lolo/db"
 	"gucooing/lolo/pkg/alg"
@@ -100,4 +101,8 @@ func (s *Server) autoLoginV2(c *gin.Context) {
 	}
 
 	rsp.SetData(getLoginResultV2(user))
+}
+
+func (s *Server) checkLoginV2(c *gin.Context) {
+	fmt.Sprintf("")
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/aes"
+	"crypto/des"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
@@ -32,6 +33,7 @@ const (
 
 var (
 	singKey = []byte("0b2a18e45d7df321")
+	desKey  = []byte("78143304")
 )
 
 type GameMsg struct {
@@ -85,6 +87,9 @@ func AESECB128Decode(key, ciphertext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(ciphertext)%aes.BlockSize != 0 {
+		return nil, fmt.Errorf("ciphertext length is not multiple of block size")
+	}
 	decrypted := make([]byte, len(ciphertext))
 	for i := 0; i < len(ciphertext); i += aes.BlockSize {
 		block.Decrypt(decrypted[i:i+aes.BlockSize], ciphertext[i:i+aes.BlockSize])
@@ -134,9 +139,32 @@ func PKCS7Padding(data []byte, blockSize int) []byte {
 	return append(data, padText...)
 }
 
+func DESECBDecode(key, ciphertext []byte) ([]byte, error) {
+	if len(key) != 8 {
+		return nil, fmt.Errorf("DES密钥必须为8字节，当前为%d字节", len(key))
+	}
+	if len(ciphertext) == 0 {
+		return nil, errors.New("密文为空")
+	}
+	if len(ciphertext)%des.BlockSize != 0 {
+		return nil, fmt.Errorf("密文长度必须是8字节的倍数，当前长度：%d", len(ciphertext))
+	}
+	block, err := des.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("创建DES密码块失败: %v", err)
+	}
+	plaintext := make([]byte, len(ciphertext))
+	blockSize := block.BlockSize()
+	for start, end := 0, blockSize; start < len(ciphertext); start, end = start+blockSize, end+blockSize {
+		block.Decrypt(plaintext[start:end], ciphertext[start:end])
+	}
+	return PKCS7Unpadding(plaintext), nil
+}
+
 type AutoReq struct {
-	Data        string `form:"data" binding:"required"`
-	Sign        string `form:"sign" binding:"required"`
+	Data        string `form:"data"`
+	Sign        string `form:"sign"`
+	JsonData    string `form:"json_data"`
 	ProductCode string `form:"productCode"`
 }
 
@@ -181,23 +209,36 @@ func AutoCryptoMiddlewareV2() gin.HandlerFunc {
 			return
 		}
 		// 解密
-		reqCiphertext, err := base64.StdEncoding.DecodeString(req.Data)
-		if err != nil {
-			c.Abort()
-			return
+		var reqPlainText []byte
+		if req.Data != "" {
+			reqCiphertext, err := base64.RawStdEncoding.DecodeString(req.Data)
+			if err != nil {
+				c.Abort()
+				return
+			}
+			reqPlainText, err = AESECB128Decode(singKey, reqCiphertext)
+			if err != nil {
+				c.Abort()
+				return
+			}
+			// 签名
+			if req.Sign != SingBytes(reqPlainText, singKey) {
+				c.Abort()
+				return
+			}
+		} else {
+			reqCiphertext, err := base64.StdEncoding.DecodeString(req.JsonData)
+			if err != nil {
+				c.Abort()
+				return
+			}
+			reqPlainText, err = DESECBDecode(desKey, reqCiphertext)
+			if err != nil {
+				c.Abort()
+				return
+			}
 		}
-		reqPlainText, err := AESECB128Decode(singKey, reqCiphertext)
-		if err != nil {
-			c.Abort()
-			return
-		}
-		// 签名
-		if req.Sign != SingBytes(reqPlainText, singKey) {
-			c.Abort()
-			return
-		}
-		// debug
-		// log.App.Debugf("SDK V2 :%s req:%s", c.Request.URL.Path, string(reqPlainText))
+
 		// 写入请求
 		c.Set(decryptedData, reqPlainText)
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(reqPlainText))
